@@ -31,112 +31,460 @@
             --warn: #f59e0b;
             --border: #1f2a44;
         }
+
+        /* 亮色主题 */
+        .theme-light {
+            --bg-0: #f1f5f9;
+            --bg-1: #e2e8f0;
+            --bg-2: #cbd5e1;
+            --card: #f8fafc;
+            --muted: #64748b;
+            --text: #1e293b;
+            --acc: #3b82f6;
+            --acc-2: #10b981;
+            --danger: #ef4444;
+            --warn: #f59e0b;
+            --border: #cbd5e1;
+        }
+
         .hidden { display: none !important; }
         #uploadModal:not(.hidden) {
             display: grid !important;
         }
 
         * { box-sizing: border-box; }
-        html, body { height: 100%; }
-        body {
+        html, body {
+            height: 100%;
             margin: 0;
+            overflow: hidden; /* 防止页面级滚动 */
+        }
+        body {
             font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial,
             "Apple Color Emoji", "Segoe UI Emoji";
             color: var(--text);
             background: radial-gradient(1200px 700px at 80% -10%, #1e293b 0%, #0b1020 60%, #060914 100%),
             linear-gradient(180deg, #0a0f1e, #0a0f1e);
         }
+
+        body.theme-light {
+            background: radial-gradient(1200px 700px at 80% -10%, #e2e8f0 0%, #cbd5e1 60%, #94a3b8 100%),
+            linear-gradient(180deg, #f1f5f9, #f1f5f9);
+        }
+
         .xterm { height: 100%; }
         .xterm-viewport { overflow-y: auto !important; }
         .xterm-screen { height: auto !important; }
         /* Layout */
-        .shell { display: grid; grid-template-columns: 280px 1fr; height: 100dvh; }
+        .shell {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            height: 100dvh;
+            overflow: hidden; /* 防止shell容器滚动 */
+        }
         .sidebar {
             background: linear-gradient(180deg, #0b1220, #050a17);
             border-right: 1px solid var(--border);
-            display: flex; flex-direction: column; gap: 12px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* 防止侧边栏整体滚动 */
         }
+
+        .theme-light .sidebar {
+            background: linear-gradient(180deg, #f8fafc, #e2e8f0);
+        }
+
         .brand {
-            padding: 18px 18px 8px 18px; display: flex; align-items: center; gap: 10px;
+            padding: 18px 18px 8px 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
             border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
         }
         .brand i { color: var(--acc); }
         .brand .title { font-weight: 700; letter-spacing: .3px; }
-        .side-actions { padding: 12px 16px; display:flex; gap:8px; }
+        .side-actions {
+            padding: 12px 16px;
+            display:flex;
+            gap:8px;
+            flex-shrink: 0;
+        }
 
-        .nav { padding: 8px; display: grid; gap: 6px; }
+        .nav {
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            flex: 1;
+            overflow-y: auto; /* 允许导航项滚动 */
+        }
         .nav .item {
             display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius: 10px;
             color: var(--muted); cursor:pointer; transition: .2s ease;
+            flex-shrink: 0;
         }
         .nav .item:hover { background: #0e1729; color: #cbd5e1; }
-        .nav .item.active { background: #0e1729; color: #e5e7eb; border: 1px solid #1a2440; }
+        .theme-light .nav .item:hover { background: #e2e8f0; color: #334155; }
 
-        .content { display: grid; grid-template-rows: auto 1fr; }
-        .topbar { display:flex; align-items:center; justify-content: space-between; padding:14px 18px; border-bottom:1px solid var(--border); background: rgba(8,14,30,.7); backdrop-filter: blur(6px); }
+        .nav .item.active { background: #0e1729; color: #e5e7eb; border: 1px solid #1a2440; }
+        .theme-light .nav .item.active { background: #e2e8f0; color: #1e293b; border: 1px solid #cbd5e1; }
+
+        .sidebar-footer {
+            margin-top: auto;
+            padding: 10px 14px;
+            color: var(--muted);
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+
+        .content {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+        }
+        .topbar {
+            display:flex;
+            align-items:center;
+            justify-content: space-between;
+            padding:14px 18px;
+            border-bottom:1px solid var(--border);
+            background: rgba(8,14,30,.7);
+            backdrop-filter: blur(6px);
+            flex-shrink: 0;
+        }
+
+        .theme-light .topbar {
+            background: rgba(241, 245, 249, .7);
+        }
+
         .topbar .right { display:flex; gap:8px; align-items:center; }
 
-        .page { height: 100%; overflow: auto; }
+        .page {
+            height: 100%;
+            overflow: hidden; /* 关键修复：防止页面内容滚动 */
+            display: flex;
+            flex-direction: column;
+        }
 
         /* Cards & forms */
-        .card { background: rgba(8,14,30,.6); border:1px solid var(--border); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.35) inset, 0 2px 12px rgba(0,0,0,.25); }
-        .card .card-hd { padding:16px 18px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content: space-between; }
-        .card .card-bd { padding:16px 18px; }
+        .card {
+            background: rgba(8,14,30,.6);
+            border:1px solid var(--border);
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,.35) inset, 0 2px 12px rgba(0,0,0,.25);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            height: 100%;
+        }
+
+        .theme-light .card {
+            background: rgba(248, 250, 252, .6);
+            box-shadow: 0 10px 30px rgba(0,0,0,.1) inset, 0 2px 12px rgba(0,0,0,.1);
+        }
+
+        .card .card-hd {
+            padding:16px 18px;
+            border-bottom:1px solid var(--border);
+            display:flex;
+            align-items:center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+        .card .card-bd {
+            padding:16px 18px;
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
 
         .grid { display:grid; gap:16px; }
         .grid.cols-2 { grid-template-columns: repeat(2, minmax(0,1fr)); }
         .grid.cols-3 { grid-template-columns: repeat(3, minmax(0,1fr)); }
 
-        .form-row { display:grid; grid-template-columns: 120px 1fr; align-items:center; gap:16px; margin-bottom: 10px; }
+        .form-row {
+            display:grid;
+            grid-template-columns: 120px 1fr;
+            align-items:center;
+            gap:16px;
+            margin-bottom: 10px;
+        }
         label { color:#cbd5e1; font-size: 14px; }
-        input, select { width:100%; padding:12px 14px; border-radius: 12px; border:1px solid #1a2440; background:#0a1328; color:#e5e7eb; outline: none; }
-        input::placeholder { color:#6b7280; }
+        .theme-light label { color: #64748b; }
 
-        .btn { display:inline-flex; align-items:center; gap:8px; padding:10px 14px; border-radius: 12px; border:1px solid transparent; cursor:pointer; font-weight:600; letter-spacing:.2px; }
+        input, select {
+            width:100%;
+            padding:12px 14px;
+            border-radius: 12px;
+            border:1px solid #1a2440;
+            background:#0a1328;
+            color:#e5e7eb;
+            outline: none;
+        }
+
+        .theme-light input,
+        .theme-light select {
+            border:1px solid #cbd5e1;
+            background:#f1f5f9;
+            color:#1e293b;
+        }
+
+        input::placeholder { color:#6b7280; }
+        .theme-light input::placeholder { color:#94a3b8; }
+
+        .btn {
+            display:inline-flex;
+            align-items:center;
+            gap:8px;
+            padding:10px 14px;
+            border-radius: 12px;
+            border:1px solid transparent;
+            cursor:pointer;
+            font-weight:600;
+            letter-spacing:.2px;
+        }
         .btn:disabled { opacity:.6; cursor:not-allowed; }
         .btn.primary { background: linear-gradient(180deg, #2f68ff, #2a56d6); border-color:#284db7; }
         .btn.green { background: linear-gradient(180deg, #18c964, #0aa652); border-color:#0c8b47; }
         .btn.warn { background: linear-gradient(180deg, #f59e0b, #d97706); border-color:#b45309; }
         .btn.ghost { background: transparent; border-color:#1a2440; color:#cbd5e1; }
+        .theme-light .btn.ghost { border-color:#cbd5e1; color:#64748b; }
+
         .btn.danger { background: linear-gradient(180deg, #ef4444, #b91c1c); border-color:#991b1b; }
 
         .toolbar { display:flex; gap:10px; flex-wrap: wrap; }
 
-        .alert { padding: 10px 12px; border-radius: 12px; border:1px solid #1a2440; display:flex; align-items:center; gap:8px; }
-        .alert.info { background:#0b1933; color:#cfe1ff; }
-        .alert.success { background:#0b2a1a; color:#caffd7; }
-        .alert.warn { background:#2b210a; color:#ffe6b3; }
-        .alert.error { background:#2a0d0d; color:#ffd1d1; }
-
-        /* Terminal layout */
-        .terminal-wrap { display:grid; grid-template-rows: auto 1fr auto; height: calc(100vh - 190px); margin-top: 12px; }
-        .tabs { display:flex; gap:6px; padding:8px; border-bottom:1px solid var(--border); background: rgba(7,12,25,.5); }
-        .tab {
-            display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius: 12px; cursor:pointer;
-            background: #091126; border:1px solid #1a2440; color:#d1d5db;
+        .alert {
+            padding: 10px 12px;
+            border-radius: 12px;
+            border:1px solid #1a2440;
+            display:flex;
+            align-items:center;
+            gap:8px;
         }
+
+        .theme-light .alert {
+            border:1px solid #cbd5e1;
+        }
+
+        .alert.info { background:#0b1933; color:#cfe1ff; }
+        .theme-light .alert.info { background:#e0f2fe; color:#0369a1; }
+
+        .alert.success { background:#0b2a1a; color:#caffd7; }
+        .theme-light .alert.success { background:#dcfce7; color:#15803d; }
+
+        .alert.warn { background:#2b210a; color:#ffe6b3; }
+        .theme-light .alert.warn { background:#fef3c7; color:#d97706; }
+
+        .alert.error { background:#2a0d0d; color:#ffd1d1; }
+        .theme-light .alert.error { background:#fee2e2; color:#b91c1c; }
+
+        /* Terminal layout - 修复滚动条问题 */
+        .terminal-wrap {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
+        .tabs {
+            display:flex;
+            gap:6px;
+            padding:8px;
+            border-bottom:1px solid var(--border);
+            background: rgba(7,12,25,.5);
+            flex-shrink: 0;
+        }
+
+        .theme-light .tabs {
+            background: rgba(241, 245, 249, .5);
+        }
+
+        .tab {
+            display:flex;
+            align-items:center;
+            gap:8px;
+            padding:8px 12px;
+            border-radius: 12px;
+            cursor:pointer;
+            background: #091126;
+            border:1px solid #1a2440;
+            color:#d1d5db;
+            flex-shrink: 0;
+        }
+
+        .theme-light .tab {
+            background: #f1f5f9;
+            border:1px solid #cbd5e1;
+            color:#64748b;
+        }
+
         .tab.active { background:#0d1a3b; color:#fff; box-shadow: 0 0 0 1px #23315b inset; }
+        .theme-light .tab.active { background:#e2e8f0; color:#1e293b; box-shadow: 0 0 0 1px #94a3b8 inset; }
+
         .tab .close { opacity:.7; }
 
-        .term-stage { position: relative; overflow: hidden; height: 100%; }
-        .term-pane { position:absolute; inset:0; display:none; height: 100%; width: 100%; }
+        .term-stage {
+            position: relative;
+            overflow: hidden;
+            flex: 1;
+            min-height: 0;
+        }
+        .term-pane {
+            position:absolute;
+            inset:0;
+            display:none;
+            height: 100%;
+            width: 100%;
+        }
         .term-pane.active { display:block; }
-        
+
         /* 确保xterm终端正确显示 */
         .xterm { height: 100%; }
         .xterm-viewport { overflow-y: auto !important; }
         .xterm-screen { height: auto !important; }
         .term-pane.active { display:block; }
 
-        .status { display:flex; justify-content: space-between; padding:8px 12px; border-top:1px solid var(--border); background: rgba(7,12,25,.6); color:#9ca3af; font-size:12px; }
+        .status {
+            display:flex;
+            justify-content: space-between;
+            padding:8px 12px;
+            border-top:1px solid var(--border);
+            background: rgba(7,12,25,.6);
+            color:#9ca3af;
+            font-size:12px;
+            flex-shrink: 0;
+        }
+
+        .theme-light .status {
+            background: rgba(241, 245, 249, .6);
+            color:#64748b;
+        }
 
         /* File manager placeholder */
         .file-grid { display:grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap:10px; }
         .file-card { background:#0a1328; border:1px solid #1a2440; border-radius:12px; padding:12px; }
+        .theme-light .file-card { background:#f1f5f9; border:1px solid #cbd5e1; }
 
         /* Utility */
         .mt-10{ margin-top:10px;} .mt-16{margin-top:16px;} .mt-20{margin-top:20px;}
         .hidden { display:none; }
+
+        /* 修复滚动条的关键样式 */
+        #page-ssh {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        #connection-panel {
+            flex-shrink: 0;
+            margin-bottom: 16px;
+        }
+
+        #terminal-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        #terminal-container .card {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #terminal-container .card-bd {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* SSH表单区域滚动修复 */
+        #ssh-form-container {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+
+        /* 自定义滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(30, 41, 59, 0.3);
+            border-radius: 4px;
+        }
+
+        .theme-light ::-webkit-scrollbar-track {
+            background: rgba(203, 213, 225, 0.3);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+
+        .theme-light ::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+
+        .theme-light ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+
+        /* 全屏终端模式 */
+        .fullscreen-terminal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1000;
+            background: #000;
+        }
+
+        .fullscreen-terminal .card {
+            height: 100%;
+            border-radius: 0;
+            background: transparent;
+            border: none;
+            box-shadow: none;
+        }
+
+        .fullscreen-terminal .card-hd {
+            background: rgba(0, 0, 0, 0.7);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .fullscreen-terminal .card-bd {
+            padding: 0;
+        }
+
+        .fullscreen-terminal .terminal-wrap {
+            height: calc(100% - 50px); /* 减去标题栏高度 */
+        }
+
+        .fullscreen-terminal .tabs {
+            background: rgba(0, 0, 0, 0.7);
+        }
+
+        .fullscreen-terminal .status {
+            background: rgba(0, 0, 0, 0.7);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
     </style>
 </head>
 <body>
@@ -162,7 +510,7 @@
             <div class="item" data-page="settings" onclick="switchPage('settings', this)"><i class="fas fa-gear"></i><span>设置</span></div>
         </nav>
 
-        <div style="margin-top:auto; padding:10px 14px; color:var(--muted); font-size:12px;">v1.0 · STOMP 客户端</div>
+        <div class="sidebar-footer">v1.0 · STOMP 客户端</div>
     </aside>
 
     <!-- Main -->
@@ -180,7 +528,8 @@
 
         <!-- Pages -->
         <section class="page" id="page-ssh">
-            <div class="grid cols-2" style="padding:16px; gap:16px;">
+            <!-- 连接面板 - 添加ID便于定位 -->
+            <div id="connection-panel" class="grid cols-2" style="padding:16px; gap:16px;">
                 <!-- Connection card -->
                 <div class="card">
                     <div class="card-hd">
@@ -192,24 +541,27 @@
                         </div>
                     </div>
                     <div class="card-bd">
-                        <div class="grid cols-2">
-                            <div class="form-row"><label>快速连接</label>
-                                <select id="savedServers" onchange="loadServerConfig()">
-                                    <option value="">选择已保存的服务器...</option>
-                                </select>
+                        <!-- SSH表单区域滚动容器 -->
+                        <div id="ssh-form-container">
+                            <div class="grid cols-2">
+                                <div class="form-row"><label>快速连接</label>
+                                    <select id="savedServers" onchange="loadServerConfig()">
+                                        <option value="">选择已保存的服务器...</option>
+                                    </select>
+                                </div>
+                                <div class="form-row"><label>服务器名称</label><input id="serverName" placeholder="给这个连接起个名字"/></div>
+                                <div class="form-row"><label>服务器地址</label><input id="host" placeholder="192.168.1.100 或 example.com" value="localhost"/></div>
+                                <div class="form-row"><label>端口</label><input id="port" type="number" value="22"/></div>
+                                <div class="form-row"><label>用户名</label><input id="username" placeholder="root"/></div>
+                                <div class="form-row"><label>密码</label><input id="password" type="password" placeholder="••••••"/></div>
                             </div>
-                            <div class="form-row"><label>服务器名称</label><input id="serverName" placeholder="给这个连接起个名字"/></div>
-                            <div class="form-row"><label>服务器地址</label><input id="host" placeholder="192.168.1.100 或 example.com" value="localhost"/></div>
-                            <div class="form-row"><label>端口</label><input id="port" type="number" value="22"/></div>
-                            <div class="form-row"><label>用户名</label><input id="username" placeholder="root"/></div>
-                            <div class="form-row"><label>密码</label><input id="password" type="password" placeholder="••••••"/></div>
+                            <div class="mt-10">
+                                <button class="btn ghost" id="saveServerBtn" onclick="toggleSaveServer()">
+                                    <i class="fa fa-bookmark"></i> 保存此服务器配置
+                                </button>
+                            </div>
+                            <div id="alertContainer" class="mt-16"></div>
                         </div>
-                        <div class="mt-10">
-                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
-                                <input id="saveServer" type="checkbox" style="accent-color:#3b82f6"> 保存此服务器配置
-                            </label>
-                        </div>
-                        <div id="alertContainer" class="mt-16"></div>
                     </div>
                 </div>
 
@@ -224,17 +576,17 @@
                 </div>
             </div>
 
-            <!-- Terminal -->
-            <div style="padding: 0 16px 16px;">
-                <div class="card">
+            <!-- Terminal - 修复滚动条问题 -->
+            <div id="terminal-container" style="padding: 0 16px 16px; flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+                <div class="card" style="height: 100%; display: flex; flex-direction: column;">
                     <div class="card-hd" style="justify-content: flex-start; gap:8px;">
                         <div class="toolbar">
                             <button class="btn ghost" onclick="createNewTab()"><i class="fa fa-plus"></i> 新建终端</button>
-                            <button class="btn ghost" onclick="fitActive()"><i class="fa fa-maximize"></i> 适配窗口</button>
+                            <button class="btn ghost" onclick="fitActiveTerminal()"><i class="fa fa-expand"></i> 全屏终端</button>
                             <button class="btn ghost" onclick="clearActive()"><i class="fa fa-eraser"></i> 清屏</button>
                         </div>
                     </div>
-                    <div class="card-bd">
+                    <div class="card-bd" style="flex: 1; overflow: hidden; display: flex; flex-direction: column;">
                         <div class="terminal-wrap">
                             <div class="tabs" id="terminalTabs"></div>
                             <div class="term-stage" id="terminalStage"></div>
@@ -296,6 +648,7 @@
     // ===== State =====
     let stompClient = null;
     let connected = false;
+    let isFullscreen = false;
 
     const tabs = []; // {id, name, term, fitAddon}
     let activeTab = null;
@@ -312,8 +665,26 @@
     }
 
     function toggleTheme(){
-        // 预留：切换主题可写入 localStorage + 切换 CSS 变量
-        alertInfo('主题切换占位：可加入暗/亮主题配置');
+        document.body.classList.toggle('theme-light');
+        const themeIcon = document.querySelector('.side-actions .btn.ghost i');
+        if (document.body.classList.contains('theme-light')) {
+            themeIcon.className = 'fa fa-sun';
+        } else {
+            themeIcon.className = 'fa fa-moon';
+        }
+
+        // 保存主题偏好到localStorage
+        const isLight = document.body.classList.contains('theme-light');
+        localStorage.setItem('webssh-theme', isLight ? 'light' : 'dark');
+
+        // 更新所有终端的主题
+        tabs.forEach(tab => {
+            if (tab.term) {
+                tab.term.setOption('theme', {
+                    background: isLight ? '#f1f5f9' : '#0b0f1e'
+                });
+            }
+        });
     }
 
     function alertInfo(msg) { pushAlert('info', msg); }
@@ -352,10 +723,12 @@
     }
     function loadServerConfig() {
         const sel = document.getElementById('savedServers');
-        const opt = sel.options[sel.selectedIndex];
-        if (!opt || !opt.dataset.server) return;
+        const idx = sel.selectedIndex;
+        if (idx <= 0) return;
 
-        const server = JSON.parse(opt.dataset.server);
+        const list = JSON.parse(localStorage.getItem(KEY) || '[]');
+        const server = list[idx - 1]; // 第一个选项是提示，所以减1
+
         document.getElementById('host').value = server.host;
         document.getElementById('port').value = server.port || 22;
         document.getElementById('username').value = server.username;
@@ -363,7 +736,7 @@
         document.getElementById('serverName').value = server.name || '';
         alertOk('已加载服务器配置');
     }
-    function saveServerIfNeeded(host, port, username, password){
+    /*function saveServerIfNeeded(host, port, username, password){
         if (!document.getElementById('saveServer').checked) return;
         const list = JSON.parse(localStorage.getItem(KEY) || '[]');
         const name = document.getElementById('serverName').value;
@@ -371,7 +744,7 @@
         localStorage.setItem(KEY, JSON.stringify(list));
         loadSavedServers();
         alertOk('已保存服务器配置');
-    }
+    }*/
 
     // ===== STOMP connect / flow =====
     function ensureStompConnected(onReady){
@@ -392,13 +765,6 @@
                     if (body.type === 'error') alertErr(body.message || '错误');
                 } catch(e) { console.error(e); }
             });
-            /*stompClient.subscribe('/user/queue/reply', (msg) => {
-                try {
-                    const body = JSON.parse(msg.body);
-                    if (body.type === 'connected') alertOk(body.message || 'SSH 连接建立成功');
-                    if (body.type === 'error') alertErr(body.message || '错误');
-                } catch(e) { console.error(e); }
-            });*/
             if (onReady) onReady();
         }, (err) => {
             connected = false;
@@ -418,9 +784,86 @@
         ensureStompConnected(() => {
             stompClient.send('/app/ssh/connect', {}, JSON.stringify({ host, port, username, password }));
             document.getElementById('disconnectBtn').disabled = false;
-            saveServerIfNeeded(host, port, username, password);
-            if (!activeTab) createNewTab();
+
+            // 保存服务器配置（异步处理）
+            saveServerIfNeeded(host, port, username, password).then(() => {
+                if (!activeTab) createNewTab();
+            });
         });
+    }
+
+    // 保存服务器配置状态
+    let saveServerEnabled = false;
+
+    function toggleSaveServer() {
+        saveServerEnabled = !saveServerEnabled;
+        const btn = document.getElementById('saveServerBtn');
+
+        if (saveServerEnabled) {
+            btn.classList.remove('ghost');
+            btn.classList.add('primary');
+            btn.innerHTML = '<i class="fa fa-bookmark"></i> 已启用保存到服务器';
+        } else {
+            btn.classList.remove('primary');
+            btn.classList.add('ghost');
+            btn.innerHTML = '<i class="fa fa-bookmark"></i> 保存到服务器';
+        }
+    }
+
+    // 保存到本地存储
+    function saveToLocal(host, port, username, password){
+        const list = JSON.parse(localStorage.getItem(KEY) || '[]');
+        const name = document.getElementById('serverName').value;
+        list.push({ host, port, username, password, name });
+        localStorage.setItem(KEY, JSON.stringify(list));
+        loadSavedServers();
+        alertOk('已保存到本地');
+    }
+
+    // 保存到服务器
+    async function saveToServer(host, port, username, password) {
+        try {
+            const name = document.getElementById('serverName').value;
+            const serverData = {
+                name: name || `${host}:${port}`,
+                host,
+                port,
+                username,
+                password
+            };
+
+            const response = await fetch('/api/servers', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(serverData)
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                alertOk('已保存到服务器');
+                // 同时也保存到本地作为备份
+                saveToLocal(host, port, username, password);
+                return true;
+            } else {
+                alertErr('保存到服务器失败: ' + result.message);
+                return false;
+            }
+        } catch (error) {
+            alertErr('保存到服务器失败: ' + error.message);
+            // 出错时仍然保存到本地
+            saveToLocal(host, port, username, password);
+            return false;
+        }
+    }
+
+    function saveServerIfNeeded(host, port, username, password){
+        if (!saveServerEnabled) return Promise.resolve();
+
+        // 优先保存到服务器，失败时保存到本地
+        return saveToServer(host, port, username, password);
     }
 
     function disconnectSSH(){
@@ -485,7 +928,7 @@
         const term = new Terminal({
             cursorBlink: true,
             fontSize: 14,
-            theme: { background: '#0b0f1e' },
+            theme: { background: '#0b0f1e' }, // 保持终端背景颜色不变
         });
         const fitAddon = new FitAddon.FitAddon();
         term.loadAddon(fitAddon);
@@ -519,12 +962,16 @@
         tabs.push({ id: tabId, name: name || 'SSH', term, fitAddon });
         activateTab(tabId);
 
+        // 添加resize监听，确保终端适应窗口
         window.addEventListener('resize', () => {
-            fitAddon.fit();
+            if (isFullscreen) {
+                fitAddon.fit();
+            } else {
+                fitActiveTerminal();
+            }
             updateStatus(term);
             // 可选：告诉后端窗口大小
-            const dims = term._core._renderService.dimensions;
-            if (dims && stompClient) {
+            if (stompClient && connected) {
                 stompClient.send('/app/ssh/resize', {}, JSON.stringify({ cols: term.cols, rows: term.rows }));
             }
         });
@@ -535,7 +982,10 @@
         document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.id === tabId));
         document.querySelectorAll('.term-pane').forEach(p => p.classList.toggle('active', p.id === tabId));
         const t = tabs.find(x => x.id === tabId);
-        if (t) { t.fitAddon.fit(); updateStatus(t.term); }
+        if (t) {
+            t.fitAddon.fit();
+            updateStatus(t.term);
+        }
     }
 
     function closeTab(tabId){
@@ -551,15 +1001,88 @@
         }
     }
 
-    function fitActive(){ const t = getActive(); if (!t) return; t.fitAddon.fit(); updateStatus(t.term); }
-    function clearActive(){ const t = getActive(); if (!t) return; t.term.clear(); }
-    function getActive(){ return tabs.find(x => x.id === activeTab); }
+    // 全屏终端功能
+    function fitActiveTerminal(){
+        const t = getActive();
+        if (!t) return;
+
+        // 如果当前是全屏模式，直接适配全屏
+        if (isFullscreen) {
+            t.fitAddon.fit();
+            updateStatus(t.term);
+            return;
+        }
+
+        // 否则适配当前窗口
+        t.fitAddon.fit();
+        updateStatus(t.term);
+
+        // 发送窗口大小调整消息到后端
+        if (stompClient && connected) {
+            stompClient.send('/app/ssh/resize', {}, JSON.stringify({
+                cols: t.term.cols,
+                rows: t.term.rows
+            }));
+        }
+    }
+
+    // 切换全屏模式
+    function toggleFullscreen() {
+        const terminalContainer = document.getElementById('terminal-container');
+        const terminalCard = terminalContainer.querySelector('.card');
+
+        if (!isFullscreen) {
+            // 进入全屏模式
+            terminalContainer.classList.add('fullscreen-terminal');
+            document.querySelector('[onclick="fitActiveTerminal()"]').innerHTML = '<i class="fa fa-compress"></i> 退出全屏';
+            isFullscreen = true;
+        } else {
+            // 退出全屏模式
+            terminalContainer.classList.remove('fullscreen-terminal');
+            document.querySelector('[onclick="fitActiveTerminal()"]').innerHTML = '<i class="fa fa-expand"></i> 全屏终端';
+            isFullscreen = false;
+        }
+
+        // 适配终端大小
+        setTimeout(() => {
+            const t = getActive();
+            if (t) {
+                t.fitAddon.fit();
+                updateStatus(t.term);
+
+                // 发送窗口大小调整消息到后端
+                if (stompClient && connected) {
+                    stompClient.send('/app/ssh/resize', {}, JSON.stringify({
+                        cols: t.term.cols,
+                        rows: t.term.rows
+                    }));
+                }
+            }
+        }, 100);
+    }
+
+    // 重写适配窗口函数为切换全屏
+    function fitActiveTerminal() {
+        toggleFullscreen();
+    }
+
+    function clearActive(){
+        const t = getActive();
+        if (!t) return;
+        t.term.clear();
+    }
+
+    function getActive(){
+        return tabs.find(x => x.id === activeTab);
+    }
 
     function appendOutput(text){
-        const t = getActive(); if (!t) return;
+        const t = getActive();
+        if (!t) return;
         t.term.write(text);
         updateStatus(t.term);
     }
+
     function updateStatus(term){
         document.getElementById('statusLeft').textContent = connected ? '在线' : '离线';
         document.getElementById('statusRight').textContent = `行: ${term.rows}, 列: ${term.cols}`;
@@ -602,11 +1125,39 @@
             alertErr('请求失败: ' + err.message);
         }
     }
-    function refreshFiles(){ const g = document.getElementById('fileGrid'); g.innerHTML = ''; for (let i=0;i<6;i++){ const c=document.createElement('div'); c.className='file-card'; c.textContent='文件占位 '+(i+1); g.appendChild(c);} }
+    function refreshFiles(){
+        const g = document.getElementById('fileGrid');
+        g.innerHTML = '';
+        for (let i=0;i<6;i++){
+            const c=document.createElement('div');
+            c.className='file-card';
+            c.textContent='文件占位 '+(i+1);
+            g.appendChild(c);
+        }
+    }
 
     // ===== Init =====
-    fetchServers();
-    refreshFiles();
+    document.addEventListener('DOMContentLoaded', () => {
+        // 恢复主题设置
+        const savedTheme = localStorage.getItem('webssh-theme');
+        if (savedTheme === 'light') {
+            document.body.classList.add('theme-light');
+            document.querySelector('.side-actions .btn.ghost i').className = 'fa fa-sun';
+        }
+
+        fetchServers();
+        refreshFiles();
+
+        // 创建默认终端标签
+        setTimeout(createNewTab, 500);
+    });
+
+    // ESC键退出全屏
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape' && isFullscreen) {
+            toggleFullscreen();
+        }
+    });
 </script>
 </body>
 </html>
