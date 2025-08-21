@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Web SSH 企业版客户端 · STOMP 版</title>
+
+    <!-- xterm.js -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+
+    <!-- STOMP + SockJS -->
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" />
+
+    <style>
+        :root {
+            --bg-0: #0f172a;
+            --bg-1: #111827;
+            --bg-2: #1f2937;
+            --card: #0b1220;
+            --muted: #94a3b8;
+            --text: #e5e7eb;
+            --acc: #3b82f6;
+            --acc-2: #22c55e;
+            --danger: #ef4444;
+            --warn: #f59e0b;
+            --border: #1f2a44;
+        }
+        .hidden { display: none !important; }
+        #uploadModal:not(.hidden) {
+            display: grid !important;
+        }
+
+        * { box-sizing: border-box; }
+        html, body { height: 100%; }
+        body {
+            margin: 0;
+            font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial,
+            "Apple Color Emoji", "Segoe UI Emoji";
+            color: var(--text);
+            background: radial-gradient(1200px 700px at 80% -10%, #1e293b 0%, #0b1020 60%, #060914 100%),
+            linear-gradient(180deg, #0a0f1e, #0a0f1e);
+        }
+        .xterm { height: 100%; }
+        .xterm-viewport { overflow-y: auto !important; }
+        .xterm-screen { height: auto !important; }
+        /* Layout */
+        .shell { display: grid; grid-template-columns: 280px 1fr; height: 100dvh; }
+        .sidebar {
+            background: linear-gradient(180deg, #0b1220, #050a17);
+            border-right: 1px solid var(--border);
+            display: flex; flex-direction: column; gap: 12px;
+        }
+        .brand {
+            padding: 18px 18px 8px 18px; display: flex; align-items: center; gap: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+        .brand i { color: var(--acc); }
+        .brand .title { font-weight: 700; letter-spacing: .3px; }
+        .side-actions { padding: 12px 16px; display:flex; gap:8px; }
+
+        .nav { padding: 8px; display: grid; gap: 6px; }
+        .nav .item {
+            display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius: 10px;
+            color: var(--muted); cursor:pointer; transition: .2s ease;
+        }
+        .nav .item:hover { background: #0e1729; color: #cbd5e1; }
+        .nav .item.active { background: #0e1729; color: #e5e7eb; border: 1px solid #1a2440; }
+
+        .content { display: grid; grid-template-rows: auto 1fr; }
+        .topbar { display:flex; align-items:center; justify-content: space-between; padding:14px 18px; border-bottom:1px solid var(--border); background: rgba(8,14,30,.7); backdrop-filter: blur(6px); }
+        .topbar .right { display:flex; gap:8px; align-items:center; }
+
+        .page { height: 100%; overflow: auto; }
+
+        /* Cards & forms */
+        .card { background: rgba(8,14,30,.6); border:1px solid var(--border); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.35) inset, 0 2px 12px rgba(0,0,0,.25); }
+        .card .card-hd { padding:16px 18px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content: space-between; }
+        .card .card-bd { padding:16px 18px; }
+
+        .grid { display:grid; gap:16px; }
+        .grid.cols-2 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+        .grid.cols-3 { grid-template-columns: repeat(3, minmax(0,1fr)); }
+
+        .form-row { display:grid; grid-template-columns: 120px 1fr; align-items:center; gap:16px; margin-bottom: 10px; }
+        label { color:#cbd5e1; font-size: 14px; }
+        input, select { width:100%; padding:12px 14px; border-radius: 12px; border:1px solid #1a2440; background:#0a1328; color:#e5e7eb; outline: none; }
+        input::placeholder { color:#6b7280; }
+
+        .btn { display:inline-flex; align-items:center; gap:8px; padding:10px 14px; border-radius: 12px; border:1px solid transparent; cursor:pointer; font-weight:600; letter-spacing:.2px; }
+        .btn:disabled { opacity:.6; cursor:not-allowed; }
+        .btn.primary { background: linear-gradient(180deg, #2f68ff, #2a56d6); border-color:#284db7; }
+        .btn.green { background: linear-gradient(180deg, #18c964, #0aa652); border-color:#0c8b47; }
+        .btn.warn { background: linear-gradient(180deg, #f59e0b, #d97706); border-color:#b45309; }
+        .btn.ghost { background: transparent; border-color:#1a2440; color:#cbd5e1; }
+        .btn.danger { background: linear-gradient(180deg, #ef4444, #b91c1c); border-color:#991b1b; }
+
+        .toolbar { display:flex; gap:10px; flex-wrap: wrap; }
+
+        .alert { padding: 10px 12px; border-radius: 12px; border:1px solid #1a2440; display:flex; align-items:center; gap:8px; }
+        .alert.info { background:#0b1933; color:#cfe1ff; }
+        .alert.success { background:#0b2a1a; color:#caffd7; }
+        .alert.warn { background:#2b210a; color:#ffe6b3; }
+        .alert.error { background:#2a0d0d; color:#ffd1d1; }
+
+        /* Terminal layout */
+        .terminal-wrap { display:grid; grid-template-rows: auto 1fr auto; height: calc(100vh - 190px); margin-top: 12px; }
+        .tabs { display:flex; gap:6px; padding:8px; border-bottom:1px solid var(--border); background: rgba(7,12,25,.5); }
+        .tab {
+            display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius: 12px; cursor:pointer;
+            background: #091126; border:1px solid #1a2440; color:#d1d5db;
+        }
+        .tab.active { background:#0d1a3b; color:#fff; box-shadow: 0 0 0 1px #23315b inset; }
+        .tab .close { opacity:.7; }
+
+        .term-stage { position: relative; overflow: hidden; height: 100%; }
+        .term-pane { position:absolute; inset:0; display:none; height: 100%; width: 100%; }
+        .term-pane.active { display:block; }
+        
+        /* 确保xterm终端正确显示 */
+        .xterm { height: 100%; }
+        .xterm-viewport { overflow-y: auto !important; }
+        .xterm-screen { height: auto !important; }
+        .term-pane.active { display:block; }
+
+        .status { display:flex; justify-content: space-between; padding:8px 12px; border-top:1px solid var(--border); background: rgba(7,12,25,.6); color:#9ca3af; font-size:12px; }
+
+        /* File manager placeholder */
+        .file-grid { display:grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap:10px; }
+        .file-card { background:#0a1328; border:1px solid #1a2440; border-radius:12px; padding:12px; }
+
+        /* Utility */
+        .mt-10{ margin-top:10px;} .mt-16{margin-top:16px;} .mt-20{margin-top:20px;}
+        .hidden { display:none; }
+    </style>
+</head>
+<body>
+<div class="shell">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="brand">
+            <i class="fas fa-terminal fa-lg"></i>
+            <div>
+                <div class="title">Web SSH</div>
+                <div style="font-size:12px; color:var(--muted)">Enterprise · STOMP</div>
+            </div>
+        </div>
+
+        <div class="side-actions">
+            <button class="btn ghost" onclick="createNewTab()"><i class="fa fa-plus"></i> 新建标签</button>
+            <button class="btn ghost" onclick="toggleTheme()"><i class="fa fa-moon"></i></button>
+        </div>
+
+        <nav class="nav">
+            <div class="item active" data-page="ssh" onclick="switchPage('ssh', this)"><i class="fas fa-terminal"></i><span>SSH 连接</span></div>
+            <div class="item" data-page="files" onclick="switchPage('files', this)"><i class="fas fa-folder"></i><span>文件管理</span></div>
+            <div class="item" data-page="settings" onclick="switchPage('settings', this)"><i class="fas fa-gear"></i><span>设置</span></div>
+        </nav>
+
+        <div style="margin-top:auto; padding:10px 14px; color:var(--muted); font-size:12px;">v1.0 · STOMP 客户端</div>
+    </aside>
+
+    <!-- Main -->
+    <main class="content">
+        <div class="topbar">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <i class="fa fa-server" style="color:var(--acc)"></i>
+                <div>连接管理</div>
+            </div>
+            <div class="right">
+                <span id="connState" class="alert info"><i class="fa fa-circle-notch fa-spin" style="display:none" id="stateSpin"></i><span id="stateText">未连接</span></span>
+                <button class="btn ghost" onclick="refreshSaved()"><i class="fa fa-rotate"></i></button>
+            </div>
+        </div>
+
+        <!-- Pages -->
+        <section class="page" id="page-ssh">
+            <div class="grid cols-2" style="padding:16px; gap:16px;">
+                <!-- Connection card -->
+                <div class="card">
+                    <div class="card-hd">
+                        <div style="display:flex; align-items:center; gap:8px;"><i class="fa fa-plug"></i><b>SSH 连接面板</b></div>
+                        <div class="toolbar">
+                            <button class="btn primary" onclick="connectSSH()"><i class="fa fa-plug"></i> 连接</button>
+                            <button class="btn green" onclick="testConnection()" id="testBtn"><i class="fa fa-vial"></i> 测试</button>
+                            <button class="btn danger" onclick="disconnectSSH()" id="disconnectBtn" disabled><i class="fa fa-xmark"></i> 断开</button>
+                        </div>
+                    </div>
+                    <div class="card-bd">
+                        <div class="grid cols-2">
+                            <div class="form-row"><label>快速连接</label>
+                                <select id="savedServers" onchange="loadServerConfig()">
+                                    <option value="">选择已保存的服务器...</option>
+                                </select>
+                            </div>
+                            <div class="form-row"><label>服务器名称</label><input id="serverName" placeholder="给这个连接起个名字"/></div>
+                            <div class="form-row"><label>服务器地址</label><input id="host" placeholder="192.168.1.100 或 example.com" value="localhost"/></div>
+                            <div class="form-row"><label>端口</label><input id="port" type="number" value="22"/></div>
+                            <div class="form-row"><label>用户名</label><input id="username" placeholder="root"/></div>
+                            <div class="form-row"><label>密码</label><input id="password" type="password" placeholder="••••••"/></div>
+                        </div>
+                        <div class="mt-10">
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                                <input id="saveServer" type="checkbox" style="accent-color:#3b82f6"> 保存此服务器配置
+                            </label>
+                        </div>
+                        <div id="alertContainer" class="mt-16"></div>
+                    </div>
+                </div>
+
+                <!-- Tips card -->
+                <div class="card">
+                    <div class="card-hd"><div style="display:flex; align-items:center; gap:8px;"><i class="fa fa-circle-info"></i><b>提示</b></div></div>
+                    <div class="card-bd">
+                        <div class="alert info"><i class="fa fa-shield"></i> 生产环境建议在服务端限制 <b>allowed origins</b>，前端仅通过 HTTPS 访问。</div>
+                        <div class="alert warn mt-10"><i class="fa fa-triangle-exclamation"></i> 如果使用小程序或原生 WebSocket 客户端，建议关闭 SockJS，仅保留 ws/wss。</div>
+                        <div class="alert success mt-10"><i class="fa fa-check"></i> 本页面已适配 STOMP：<code>/app/ssh/*</code> 收发，订阅 <code>/user/queue/output</code>。</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Terminal -->
+            <div style="padding: 0 16px 16px;">
+                <div class="card">
+                    <div class="card-hd" style="justify-content: flex-start; gap:8px;">
+                        <div class="toolbar">
+                            <button class="btn ghost" onclick="createNewTab()"><i class="fa fa-plus"></i> 新建终端</button>
+                            <button class="btn ghost" onclick="fitActive()"><i class="fa fa-maximize"></i> 适配窗口</button>
+                            <button class="btn ghost" onclick="clearActive()"><i class="fa fa-eraser"></i> 清屏</button>
+                        </div>
+                    </div>
+                    <div class="card-bd">
+                        <div class="terminal-wrap">
+                            <div class="tabs" id="terminalTabs"></div>
+                            <div class="term-stage" id="terminalStage"></div>
+                            <div class="status"><span id="statusLeft">就绪</span><span id="statusRight">行: 24, 列: 80</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Files page (placeholder; SFTP/STOMP 可对接) -->
+        <section class="page hidden" id="page-files">
+            <div style="padding:16px;">
+                <div class="card">
+                    <div class="card-hd"><b>文件管理器</b>
+                        <div class="toolbar">
+                            <button class="btn primary" onclick="showUploadModal()"><i class="fa fa-upload"></i> 上传文件</button>
+                            <button class="btn ghost" onclick="refreshFiles()"><i class="fa fa-rotate"></i> 刷新</button>
+                        </div>
+                    </div>
+                    <div class="card-bd">
+                        <div class="alert info">请先连接服务器，并在此处对接 SFTP API（建议统一用 STOMP 通道）。</div>
+                        <div class="file-grid mt-16" id="fileGrid"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Settings page -->
+        <section class="page hidden" id="page-settings">
+            <div style="padding:16px;">
+                <div class="card"><div class="card-hd"><b>设置</b></div><div class="card-bd">
+                    <div class="alert info">保留占位，可加入主题、快捷键映射、字体大小等。</div>
+                </div></div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<!-- Upload modal (placeholder) -->
+<div id="uploadModal" class="hidden"
+     style="position:fixed; inset:0; display:grid; place-items:center; backdrop-filter: blur(2px); background: rgba(0,0,0,.35);">
+    <div class="card" style="width:520px;">
+        <div class="card-hd"><b>上传文件</b><button class="btn ghost" onclick="closeModal('uploadModal')"><i class="fa fa-xmark"></i></button></div>
+        <div class="card-bd">
+            <div class="grid">
+                <div class="form-row"><label>选择文件</label><input id="uploadFiles" type="file" multiple /></div>
+                <div class="form-row"><label>上传路径</label><input id="uploadPath" value="/" /></div>
+            </div>
+            <div class="mt-16" style="display:flex; justify-content:flex-end; gap:8px;">
+                <button class="btn ghost" onclick="closeModal('uploadModal')">取消</button>
+                <button class="btn primary" onclick="handleUpload()">上传</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ===== State =====
+    let stompClient = null;
+    let connected = false;
+
+    const tabs = []; // {id, name, term, fitAddon}
+    let activeTab = null;
+
+    // ===== UI helpers =====
+    function switchPage(page, el) {
+        document.querySelectorAll('.nav .item').forEach(n => n.classList.remove('active'));
+        if (el) el.classList.add('active');
+        ['ssh','files','settings'].forEach(p => {
+            const sec = document.getElementById('page-'+p);
+            if (!sec) return;
+            if (p === page) { sec.classList.remove('hidden'); } else { sec.classList.add('hidden'); }
+        });
+    }
+
+    function toggleTheme(){
+        // 预留：切换主题可写入 localStorage + 切换 CSS 变量
+        alertInfo('主题切换占位：可加入暗/亮主题配置');
+    }
+
+    function alertInfo(msg) { pushAlert('info', msg); }
+    function alertOk(msg) { pushAlert('success', msg); }
+    function alertWarn(msg) { pushAlert('warn', msg); }
+    function alertErr(msg) { pushAlert('error', msg); }
+    function pushAlert(type, msg) {
+        const box = document.getElementById('alertContainer');
+        const el = document.createElement('div');
+        el.className = `alert ${type} mt-10`;
+        el.innerHTML = `<i class="fa fa-info-circle"></i> ${msg}`;
+        box.prepend(el);
+        setTimeout(() => el.remove(), 5000);
+    }
+
+    function setConnState(text, spinning=false) {
+        document.getElementById('stateText').textContent = text;
+        document.getElementById('stateSpin').style.display = spinning ? 'inline-block' : 'none';
+        const pill = document.getElementById('connState');
+        pill.classList.remove('error','success','info');
+        pill.classList.add(spinning ? 'info' : (connected? 'success' : 'error'));
+    }
+
+    // ===== Saved servers (localStorage) =====
+    const KEY = 'webssh.savedServers.v1';
+    function refreshSaved(){ loadSavedServers(); alertInfo('已刷新已保存服务器列表'); }
+    function loadSavedServers(){
+        const list = JSON.parse(localStorage.getItem(KEY) || '[]');
+        const sel = document.getElementById('savedServers');
+        sel.innerHTML = '<option value="">选择已保存的服务器...</option>';
+        list.forEach((s, idx) => {
+            const o = document.createElement('option');
+            o.value = idx; o.textContent = `${s.name || s.host}:${s.port} (${s.username})`;
+            sel.appendChild(o);
+        });
+    }
+    function loadServerConfig() {
+        const sel = document.getElementById('savedServers');
+        const opt = sel.options[sel.selectedIndex];
+        if (!opt || !opt.dataset.server) return;
+
+        const server = JSON.parse(opt.dataset.server);
+        document.getElementById('host').value = server.host;
+        document.getElementById('port').value = server.port || 22;
+        document.getElementById('username').value = server.username;
+        document.getElementById('password').value = server.password || '';
+        document.getElementById('serverName').value = server.name || '';
+        alertOk('已加载服务器配置');
+    }
+    function saveServerIfNeeded(host, port, username, password){
+        if (!document.getElementById('saveServer').checked) return;
+        const list = JSON.parse(localStorage.getItem(KEY) || '[]');
+        const name = document.getElementById('serverName').value;
+        list.push({ host, port, username, password, name });
+        localStorage.setItem(KEY, JSON.stringify(list));
+        loadSavedServers();
+        alertOk('已保存服务器配置');
+    }
+
+    // ===== STOMP connect / flow =====
+    function ensureStompConnected(onReady){
+        if (stompClient && connected) return onReady && onReady();
+        setConnState('正在连接...', true);
+        const socket = new SockJS('/ssh-ws');
+        stompClient = Stomp.over(socket);
+        // 生产建议：stompClient.debug = null;
+        stompClient.connect({}, () => {
+            connected = true;
+            setConnState('已连接');
+            // 订阅服务端输出
+            stompClient.subscribe('/user/queue/output', (msg) => {
+                try {
+                    const body = JSON.parse(msg.body);
+                    if (body.type === 'output' && body.data != null) appendOutput(body.data);
+                    if (body.type === 'connected') alertOk(body.message || 'SSH 连接建立成功');
+                    if (body.type === 'error') alertErr(body.message || '错误');
+                } catch(e) { console.error(e); }
+            });
+            /*stompClient.subscribe('/user/queue/reply', (msg) => {
+                try {
+                    const body = JSON.parse(msg.body);
+                    if (body.type === 'connected') alertOk(body.message || 'SSH 连接建立成功');
+                    if (body.type === 'error') alertErr(body.message || '错误');
+                } catch(e) { console.error(e); }
+            });*/
+            if (onReady) onReady();
+        }, (err) => {
+            connected = false;
+            setConnState('连接失败');
+            alertErr('STOMP 连接失败：' + (err && err.body || err));
+        });
+    }
+
+    function connectSSH(){
+        const host = document.getElementById('host').value.trim();
+        const port = parseInt(document.getElementById('port').value, 10) || 22;
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value;
+
+        if (!host || !username) { return alertWarn('请填写主机与用户名'); }
+
+        ensureStompConnected(() => {
+            stompClient.send('/app/ssh/connect', {}, JSON.stringify({ host, port, username, password }));
+            document.getElementById('disconnectBtn').disabled = false;
+            saveServerIfNeeded(host, port, username, password);
+            if (!activeTab) createNewTab();
+        });
+    }
+
+    function disconnectSSH(){
+        if (!stompClient) return;
+        stompClient.send('/app/ssh/disconnect', {}, JSON.stringify({}));
+        document.getElementById('disconnectBtn').disabled = true;
+        alertInfo('已发送断开请求');
+    }
+
+    async function testConnection() {
+        const host = document.getElementById('host').value.trim();
+        const port = parseInt(document.getElementById('port').value, 10) || 22;
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value;
+
+        if (!host || !username) return alertWarn('请填写主机与用户名');
+
+        try {
+            const res = await fetch('/api/servers/test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ host, port, username, password })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alertOk('连接测试成功');
+            } else {
+                alertErr('连接测试失败: ' + data.message);
+            }
+        } catch (err) {
+            alertErr('请求失败: ' + err.message);
+        }
+    }
+
+    async function fetchServers() {
+        try {
+            const res = await fetch('/api/servers'); // 请确认你的实际路径
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const servers = await res.json();
+
+            // 假设后端返回的是 [{ id, name, host, port, username, password }]
+            const sel = document.getElementById('savedServers');
+            sel.innerHTML = '<option value="">选择已保存的服务器...</option>';
+            servers.forEach((s, idx) => {
+                const opt = document.createElement('option');
+                opt.value = idx;
+                opt.textContent = `${s.name || s.host}:${s.port} (${s.username})`;
+                opt.dataset.server = JSON.stringify(s); // 便于后续读取
+                sel.appendChild(opt);
+            });
+        } catch (err) {
+            console.error('加载服务器列表失败:', err);
+            alertErr('无法连接服务器列表: ' + err.message);
+            // 失败时仍可加载本地缓存
+            loadSavedServers();
+        }
+    }
+
+    // ===== Xterm tabs =====
+    function createNewTab(name){
+        const tabId = 'tab-' + Date.now();
+        const term = new Terminal({
+            cursorBlink: true,
+            fontSize: 14,
+            theme: { background: '#0b0f1e' },
+        });
+        const fitAddon = new FitAddon.FitAddon();
+        term.loadAddon(fitAddon);
+
+        // Tabs UI
+        const tabEl = document.createElement('div');
+        tabEl.className = 'tab active';
+        tabEl.dataset.id = tabId;
+        tabEl.innerHTML = `<i class="fa fa-terminal"></i><span>${name || 'SSH'}</span> <i class="fa fa-xmark close"></i>`;
+        tabEl.addEventListener('click', (e) => {
+            if (e.target && e.target.classList.contains('close')) { closeTab(tabId); e.stopPropagation(); return; }
+            activateTab(tabId);
+        });
+        document.getElementById('terminalTabs').appendChild(tabEl);
+
+        const pane = document.createElement('div');
+        pane.className = 'term-pane';
+        pane.id = tabId;
+        document.getElementById('terminalStage').appendChild(pane);
+
+        term.open(pane);
+        fitAddon.fit();
+
+        // 输入 → 发送到后端
+        term.onData(data => {
+            if (stompClient && connected) {
+                stompClient.send('/app/ssh/input', {}, JSON.stringify({ data }));
+            }
+        });
+
+        tabs.push({ id: tabId, name: name || 'SSH', term, fitAddon });
+        activateTab(tabId);
+
+        window.addEventListener('resize', () => {
+            fitAddon.fit();
+            updateStatus(term);
+            // 可选：告诉后端窗口大小
+            const dims = term._core._renderService.dimensions;
+            if (dims && stompClient) {
+                stompClient.send('/app/ssh/resize', {}, JSON.stringify({ cols: term.cols, rows: term.rows }));
+            }
+        });
+    }
+
+    function activateTab(tabId){
+        activeTab = tabId;
+        document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.id === tabId));
+        document.querySelectorAll('.term-pane').forEach(p => p.classList.toggle('active', p.id === tabId));
+        const t = tabs.find(x => x.id === tabId);
+        if (t) { t.fitAddon.fit(); updateStatus(t.term); }
+    }
+
+    function closeTab(tabId){
+        const idx = tabs.findIndex(x => x.id === tabId);
+        if (idx === -1) return;
+        const t = tabs[idx];
+        t.term.dispose();
+        document.querySelector(`.tab[data-id="${tabId}"]`)?.remove();
+        document.getElementById(tabId)?.remove();
+        tabs.splice(idx,1);
+        if (activeTab === tabId) {
+            if (tabs.length) activateTab(tabs[tabs.length-1].id); else activeTab = null;
+        }
+    }
+
+    function fitActive(){ const t = getActive(); if (!t) return; t.fitAddon.fit(); updateStatus(t.term); }
+    function clearActive(){ const t = getActive(); if (!t) return; t.term.clear(); }
+    function getActive(){ return tabs.find(x => x.id === activeTab); }
+
+    function appendOutput(text){
+        const t = getActive(); if (!t) return;
+        t.term.write(text);
+        updateStatus(t.term);
+    }
+    function updateStatus(term){
+        document.getElementById('statusLeft').textContent = connected ? '在线' : '离线';
+        document.getElementById('statusRight').textContent = `行: ${term.rows}, 列: ${term.cols}`;
+    }
+
+    // ===== Files (placeholder) =====
+    function showUploadModal(){ document.getElementById("uploadModal").classList.remove("hidden"); }
+    function closeModal(id){ document.getElementById(id).classList.add("hidden"); }
+    async function handleUpload() {
+        const fileInput = document.getElementById('uploadFiles');
+        const uploadPath = document.getElementById('uploadPath').value;
+        const files = fileInput.files;
+
+        if (files.length === 0) {
+            alertWarn('请选择要上传的文件');
+            return;
+        }
+
+        const formData = new FormData();
+        for (let i = 0; i < files.length; i++) {
+            formData.append('files', files[i]);
+        }
+        formData.append('path', uploadPath);
+
+        try {
+            const res = await fetch('/api/servers/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                alertOk(`成功上传 ${data.savedFiles.length} 个文件`);
+                closeModal('uploadModal');
+                fileInput.value = ''; // 清空选择
+            } else {
+                alertErr('上传失败: ' + data.message);
+            }
+        } catch (err) {
+            alertErr('请求失败: ' + err.message);
+        }
+    }
+    function refreshFiles(){ const g = document.getElementById('fileGrid'); g.innerHTML = ''; for (let i=0;i<6;i++){ const c=document.createElement('div'); c.className='file-card'; c.textContent='文件占位 '+(i+1); g.appendChild(c);} }
+
+    // ===== Init =====
+    fetchServers();
+    refreshFiles();
+</script>
+</body>
+</html>
