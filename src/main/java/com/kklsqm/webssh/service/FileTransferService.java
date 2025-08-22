@@ -1,7 +1,9 @@
 package com.kklsqm.webssh.service;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.jcraft.jsch.*;
 import com.kklsqm.webssh.domain.SshService;
+import lombok.Data;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -283,10 +285,10 @@ public class FileTransferService {
     }
 
     // 文件信息内部类
+    @Data
     public static class FileInfo {
-        // Getters
-        @Getter
         private String name;
+        @JsonProperty("isDirectory")
         private boolean isDirectory;
         private long size;
         private long lastModified;
@@ -300,7 +302,10 @@ public class FileTransferService {
             this.permissions = permissions;
         }
 
-        public boolean isDirectory() { return isDirectory; }
+        @JsonProperty("isDirectory") // 也可以加在这里保证一致性
+        public boolean isDirectory() {
+            return isDirectory;
+        }
 
     }
 }

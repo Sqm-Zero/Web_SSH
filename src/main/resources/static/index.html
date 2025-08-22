@@ -31,7 +31,6 @@
             --warn: #f59e0b;
             --border: #1f2a44;
         }
-
         /* 亮色主题 */
         .theme-light {
             --bg-0: #f1f5f9;
@@ -46,9 +45,10 @@
             --warn: #f59e0b;
             --border: #cbd5e1;
         }
-
         .hidden { display: none !important; }
-        #uploadModal:not(.hidden) {
+        #uploadModal:not(.hidden),
+        #fileManagerModal:not(.hidden),
+        #createDirModal:not(.hidden) {
             display: grid !important;
         }
 
@@ -65,12 +65,10 @@
             background: radial-gradient(1200px 700px at 80% -10%, #1e293b 0%, #0b1020 60%, #060914 100%),
             linear-gradient(180deg, #0a0f1e, #0a0f1e);
         }
-
         body.theme-light {
             background: radial-gradient(1200px 700px at 80% -10%, #e2e8f0 0%, #cbd5e1 60%, #94a3b8 100%),
             linear-gradient(180deg, #f1f5f9, #f1f5f9);
         }
-
         .xterm { height: 100%; }
         .xterm-viewport { overflow-y: auto !important; }
         .xterm-screen { height: auto !important; }
@@ -88,11 +86,9 @@
             flex-direction: column;
             overflow: hidden; /* 防止侧边栏整体滚动 */
         }
-
         .theme-light .sidebar {
             background: linear-gradient(180deg, #f8fafc, #e2e8f0);
         }
-
         .brand {
             padding: 18px 18px 8px 18px;
             display: flex;
@@ -125,7 +121,6 @@
         }
         .nav .item:hover { background: #0e1729; color: #cbd5e1; }
         .theme-light .nav .item:hover { background: #e2e8f0; color: #334155; }
-
         .nav .item.active { background: #0e1729; color: #e5e7eb; border: 1px solid #1a2440; }
         .theme-light .nav .item.active { background: #e2e8f0; color: #1e293b; border: 1px solid #cbd5e1; }
 
@@ -153,11 +148,9 @@
             backdrop-filter: blur(6px);
             flex-shrink: 0;
         }
-
         .theme-light .topbar {
             background: rgba(241, 245, 249, .7);
         }
-
         .topbar .right { display:flex; gap:8px; align-items:center; }
 
         .page {
@@ -178,12 +171,10 @@
             overflow: hidden;
             height: 100%;
         }
-
         .theme-light .card {
             background: rgba(248, 250, 252, .6);
             box-shadow: 0 10px 30px rgba(0,0,0,.1) inset, 0 2px 12px rgba(0,0,0,.1);
         }
-
         .card .card-hd {
             padding:16px 18px;
             border-bottom:1px solid var(--border);
@@ -213,7 +204,6 @@
         }
         label { color:#cbd5e1; font-size: 14px; }
         .theme-light label { color: #64748b; }
-
         input, select {
             width:100%;
             padding:12px 14px;
@@ -223,14 +213,12 @@
             color:#e5e7eb;
             outline: none;
         }
-
         .theme-light input,
         .theme-light select {
             border:1px solid #cbd5e1;
             background:#f1f5f9;
             color:#1e293b;
         }
-
         input::placeholder { color:#6b7280; }
         .theme-light input::placeholder { color:#94a3b8; }
 
@@ -251,7 +239,6 @@
         .btn.warn { background: linear-gradient(180deg, #f59e0b, #d97706); border-color:#b45309; }
         .btn.ghost { background: transparent; border-color:#1a2440; color:#cbd5e1; }
         .theme-light .btn.ghost { border-color:#cbd5e1; color:#64748b; }
-
         .btn.danger { background: linear-gradient(180deg, #ef4444, #b91c1c); border-color:#991b1b; }
 
         .toolbar { display:flex; gap:10px; flex-wrap: wrap; }
@@ -264,20 +251,15 @@
             align-items:center;
             gap:8px;
         }
-
         .theme-light .alert {
             border:1px solid #cbd5e1;
         }
-
         .alert.info { background:#0b1933; color:#cfe1ff; }
         .theme-light .alert.info { background:#e0f2fe; color:#0369a1; }
-
         .alert.success { background:#0b2a1a; color:#caffd7; }
         .theme-light .alert.success { background:#dcfce7; color:#15803d; }
-
         .alert.warn { background:#2b210a; color:#ffe6b3; }
         .theme-light .alert.warn { background:#fef3c7; color:#d97706; }
-
         .alert.error { background:#2a0d0d; color:#ffd1d1; }
         .theme-light .alert.error { background:#fee2e2; color:#b91c1c; }
 
@@ -297,11 +279,9 @@
             background: rgba(7,12,25,.5);
             flex-shrink: 0;
         }
-
         .theme-light .tabs {
             background: rgba(241, 245, 249, .5);
         }
-
         .tab {
             display:flex;
             align-items:center;
@@ -314,16 +294,13 @@
             color:#d1d5db;
             flex-shrink: 0;
         }
-
         .theme-light .tab {
             background: #f1f5f9;
             border:1px solid #cbd5e1;
             color:#64748b;
         }
-
         .tab.active { background:#0d1a3b; color:#fff; box-shadow: 0 0 0 1px #23315b inset; }
         .theme-light .tab.active { background:#e2e8f0; color:#1e293b; box-shadow: 0 0 0 1px #94a3b8 inset; }
-
         .tab .close { opacity:.7; }
 
         .term-stage {
@@ -357,20 +334,94 @@
             font-size:12px;
             flex-shrink: 0;
         }
-
         .theme-light .status {
             background: rgba(241, 245, 249, .6);
             color:#64748b;
         }
 
-        /* File manager placeholder */
-        .file-grid { display:grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap:10px; }
-        .file-card { background:#0a1328; border:1px solid #1a2440; border-radius:12px; padding:12px; }
-        .theme-light .file-card { background:#f1f5f9; border:1px solid #cbd5e1; }
+        /* File manager */
+        .file-grid-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .file-grid {
+            display:grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap:15px;
+        }
+
+        .file-card {
+            background:#0a1328;
+            border:1px solid #1a2440;
+            border-radius:12px;
+            padding:15px 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .theme-light .file-card {
+            background:#f1f5f9;
+            border:1px solid #cbd5e1;
+        }
+
+        .file-card:hover {
+            background: #1e293b;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .theme-light .file-card:hover {
+            background: #e2e8f0;
+        }
+
+        .file-card .icon {
+            font-size: 2em;
+            margin-bottom: 8px;
+        }
+
+        .file-card .name {
+            font-size: 0.9em;
+            word-break: break-all;
+        }
+
+        .file-card.directory .icon {
+            color: var(--acc);
+        }
+
+        .file-card.file .icon {
+            color: var(--muted);
+        }
+
+        .file-path {
+            padding: 10px 15px;
+            background: rgba(30, 41, 59, 0.5);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .theme-light .file-path {
+            background: rgba(226, 232, 240, 0.5);
+        }
+
+        .file-path .path {
+            flex: 1;
+            font-family: monospace;
+            font-size: 0.9em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
 
         /* Utility */
         .mt-10{ margin-top:10px;} .mt-16{margin-top:16px;} .mt-20{margin-top:20px;}
         .hidden { display:none; }
+        .text-right { text-align: right; }
 
         /* 修复滚动条的关键样式 */
         #page-ssh {
@@ -423,7 +474,6 @@
             background: rgba(30, 41, 59, 0.3);
             border-radius: 4px;
         }
-
         .theme-light ::-webkit-scrollbar-track {
             background: rgba(203, 213, 225, 0.3);
         }
@@ -432,7 +482,6 @@
             background: #475569;
             border-radius: 4px;
         }
-
         .theme-light ::-webkit-scrollbar-thumb {
             background: #94a3b8;
         }
@@ -440,7 +489,6 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #64748b;
         }
-
         .theme-light ::-webkit-scrollbar-thumb:hover {
             background: #64748b;
         }
@@ -484,6 +532,100 @@
         .fullscreen-terminal .status {
             background: rgba(0, 0, 0, 0.7);
             border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Modals */
+        .modal {
+            position: fixed;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            backdrop-filter: blur(2px);
+            background: rgba(0,0,0,.35);
+            z-index: 1001;
+        }
+
+        .modal-content {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,.35);
+            width: 95%;
+            max-width: 1000px;
+            height: 90vh;
+            max-height: 95vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .modal-header {
+            padding: 16px 18px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .modal-body {
+            padding: 0;
+            overflow: hidden;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-footer {
+            padding: 16px 18px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .file-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* 文件操作菜单 */
+        .file-context-menu {
+            position: absolute;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 1002;
+            min-width: 150px;
+            display: none;
+        }
+
+        .file-context-menu.show {
+            display: block;
+        }
+
+        .file-context-menu .menu-item {
+            padding: 10px 15px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .file-context-menu .menu-item:hover {
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        /* 上传模态框特殊样式 */
+        #uploadModal .modal-content,
+        #createDirModal .modal-content {
+            width: 90%;
+            max-width: 520px;
+            height: auto;
+            max-height: 90vh;
         }
     </style>
 </head>
@@ -597,19 +739,19 @@
             </div>
         </section>
 
-        <!-- Files page (placeholder; SFTP/STOMP 可对接) -->
+        <!-- Files page -->
         <section class="page hidden" id="page-files">
-            <div style="padding:16px;">
-                <div class="card">
-                    <div class="card-hd"><b>文件管理器</b>
+            <div style="padding:16px; height: 100%; display: flex; flex-direction: column;">
+                <div class="card" style="flex: 1; display: flex; flex-direction: column; height: 100%;">
+                    <div class="card-hd">
+                        <b>文件管理器</b>
                         <div class="toolbar">
-                            <button class="btn primary" onclick="showUploadModal()"><i class="fa fa-upload"></i> 上传文件</button>
-                            <button class="btn ghost" onclick="refreshFiles()"><i class="fa fa-rotate"></i> 刷新</button>
+                            <button class="btn primary" onclick="refreshFilesPage()"><i class="fa fa-sync"></i> 刷新服务器列表</button>
                         </div>
                     </div>
-                    <div class="card-bd">
-                        <div class="alert info">请先连接服务器，并在此处对接 SFTP API（建议统一用 STOMP 通道）。</div>
-                        <div class="file-grid mt-16" id="fileGrid"></div>
+                    <div class="card-bd" style="display: flex; flex-direction: column; overflow: hidden;">
+                        <div class="alert info">请选择一个已连接的服务器来管理文件。</div>
+                        <div id="filesServerList" class="mt-16" style="flex: 1; overflow-y: auto;"></div>
                     </div>
                 </div>
             </div>
@@ -626,22 +768,81 @@
     </main>
 </div>
 
-<!-- Upload modal (placeholder) -->
-<div id="uploadModal" class="hidden"
-     style="position:fixed; inset:0; display:grid; place-items:center; backdrop-filter: blur(2px); background: rgba(0,0,0,.35);">
-    <div class="card" style="width:520px;">
-        <div class="card-hd"><b>上传文件</b><button class="btn ghost" onclick="closeModal('uploadModal')"><i class="fa fa-xmark"></i></button></div>
-        <div class="card-bd">
+<!-- 文件管理器模态框 -->
+<div id="fileManagerModal" class="modal hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <b>文件管理器 - <span id="fileManagerServerName"></span></b>
+            <button class="btn ghost" onclick="closeFileManager()"><i class="fa fa-times"></i></button>
+        </div>
+        <div class="file-path">
+            <button class="btn ghost" onclick="goToParentDirectory()"><i class="fa fa-arrow-up"></i> 上级</button>
+            <div class="path" id="currentPath">/</div>
+            <button class="btn ghost" onclick="refreshFileManager()"><i class="fa fa-sync"></i></button>
+        </div>
+        <div class="modal-body">
+            <div id="fileGridContainer" class="file-grid-container">
+                <div id="fileList" class="file-grid">
+                    <!-- 文件列表将在这里动态生成 -->
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <div>
+                <button class="btn ghost" onclick="showCreateDirModal()"><i class="fa fa-folder-plus"></i> 新建目录</button>
+            </div>
+            <div class="file-actions">
+                <button class="btn primary" onclick="showUploadModal()"><i class="fa fa-upload"></i> 上传文件</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 上传文件模态框 -->
+<div id="uploadModal" class="modal hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <b>上传文件</b>
+            <button class="btn ghost" onclick="closeUploadModal()"><i class="fa fa-xmark"></i></button>
+        </div>
+        <div class="modal-body" style="padding: 16px 18px;">
             <div class="grid">
                 <div class="form-row"><label>选择文件</label><input id="uploadFiles" type="file" multiple /></div>
                 <div class="form-row"><label>上传路径</label><input id="uploadPath" value="/" /></div>
             </div>
-            <div class="mt-16" style="display:flex; justify-content:flex-end; gap:8px;">
-                <button class="btn ghost" onclick="closeModal('uploadModal')">取消</button>
-                <button class="btn primary" onclick="handleUpload()">上传</button>
-            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn ghost" onclick="closeUploadModal()">取消</button>
+            <button class="btn primary" onclick="handleUpload()">上传</button>
         </div>
     </div>
+</div>
+
+<!-- 新建目录模态框 -->
+<div id="createDirModal" class="modal hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <b>新建目录</b>
+            <button class="btn ghost" onclick="closeCreateDirModal()"><i class="fa fa-times"></i></button>
+        </div>
+        <div class="modal-body" style="padding: 16px 18px;">
+            <div class="form-row">
+                <label>目录名称</label>
+                <input id="newDirName" placeholder="请输入目录名称" />
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn ghost" onclick="closeCreateDirModal()">取消</button>
+            <button class="btn primary" onclick="createDirectory()">创建</button>
+        </div>
+    </div>
+</div>
+
+<!-- 文件操作上下文菜单 -->
+<div id="fileContextMenu" class="file-context-menu">
+    <div class="menu-item" onclick="downloadSelectedFile()"><i class="fa fa-download"></i> 下载</div>
+    <div class="menu-item" onclick="deleteSelectedFile()"><i class="fa fa-trash"></i> 删除</div>
+    <div class="menu-item" onclick="renameSelectedFile()"><i class="fa fa-edit"></i> 重命名</div>
 </div>
 
 <script>
@@ -649,6 +850,9 @@
     let stompClient = null;
     let connected = false;
     let isFullscreen = false;
+    let currentFileManagerServer = null; // 当前文件管理器连接的服务器
+    let currentPath = "/";               // 当前浏览路径
+    let selectedFile = null;             // 当前选中的文件/目录信息
 
     const tabs = []; // {id, name, term, fitAddon}
     let activeTab = null;
@@ -662,6 +866,11 @@
             if (!sec) return;
             if (p === page) { sec.classList.remove('hidden'); } else { sec.classList.add('hidden'); }
         });
+
+        // 如果切换到文件页面，刷新服务器列表
+        if (page === 'files') {
+            refreshFilesPage();
+        }
     }
 
     function toggleTheme(){
@@ -672,11 +881,9 @@
         } else {
             themeIcon.className = 'fa fa-moon';
         }
-
         // 保存主题偏好到localStorage
         const isLight = document.body.classList.contains('theme-light');
         localStorage.setItem('webssh-theme', isLight ? 'light' : 'dark');
-
         // 更新所有终端的主题
         tabs.forEach(tab => {
             if (tab.term) {
@@ -725,10 +932,8 @@
         const sel = document.getElementById('savedServers');
         const idx = sel.selectedIndex;
         if (idx <= 0) return;
-
         const list = JSON.parse(localStorage.getItem(KEY) || '[]');
         const server = list[idx - 1]; // 第一个选项是提示，所以减1
-
         document.getElementById('host').value = server.host;
         document.getElementById('port').value = server.port || 22;
         document.getElementById('username').value = server.username;
@@ -769,13 +974,10 @@
         const port = parseInt(document.getElementById('port').value, 10) || 22;
         const username = document.getElementById('username').value.trim();
         const password = document.getElementById('password').value;
-
         if (!host || !username) { return alertWarn('请填写主机与用户名'); }
-
         ensureStompConnected(() => {
             stompClient.send('/app/ssh/connect', {}, JSON.stringify({ host, port, username, password }));
             document.getElementById('disconnectBtn').disabled = false;
-
             // 保存服务器配置（异步处理）
             saveServerIfNeeded(host, port, username, password).then(() => {
                 if (!activeTab) createNewTab();
@@ -785,11 +987,9 @@
 
     // 保存服务器配置状态
     let saveServerEnabled = false;
-
     function toggleSaveServer() {
         saveServerEnabled = !saveServerEnabled;
         const btn = document.getElementById('saveServerBtn');
-
         if (saveServerEnabled) {
             btn.classList.remove('ghost');
             btn.classList.add('primary');
@@ -822,7 +1022,6 @@
                 username,
                 password
             };
-
             const response = await fetch('/api/servers', {
                 method: 'POST',
                 headers: {
@@ -830,9 +1029,7 @@
                 },
                 body: JSON.stringify(serverData)
             });
-
             const result = await response.json();
-
             if (result.success) {
                 alertOk('已保存到服务器');
                 // 同时也保存到本地作为备份
@@ -852,7 +1049,6 @@
 
     function saveServerIfNeeded(host, port, username, password){
         if (!saveServerEnabled) return Promise.resolve();
-
         // 优先保存到服务器，失败时保存到本地
         return saveToServer(host, port, username, password);
     }
@@ -869,9 +1065,7 @@
         const port = parseInt(document.getElementById('port').value, 10) || 22;
         const username = document.getElementById('username').value.trim();
         const password = document.getElementById('password').value;
-
         if (!host || !username) return alertWarn('请填写主机与用户名');
-
         try {
             const res = await fetch('/api/servers/test', {
                 method: 'POST',
@@ -891,25 +1085,14 @@
 
     async function fetchServers() {
         try {
-            const res = await fetch('/api/servers'); // 请确认你的实际路径
+            const res = await fetch('/api/servers');
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const servers = await res.json();
-
-            // 假设后端返回的是 [{ id, name, host, port, username, password }]
-            const sel = document.getElementById('savedServers');
-            sel.innerHTML = '<option value="">选择已保存的服务器...</option>';
-            servers.forEach((s, idx) => {
-                const opt = document.createElement('option');
-                opt.value = idx;
-                opt.textContent = `${s.name || s.host}:${s.port} (${s.username})`;
-                opt.dataset.server = JSON.stringify(s); // 便于后续读取
-                sel.appendChild(opt);
-            });
+            return servers;
         } catch (err) {
             console.error('加载服务器列表失败:', err);
             alertErr('无法连接服务器列表: ' + err.message);
-            // 失败时仍可加载本地缓存
-            loadSavedServers();
+            return [];
         }
     }
 
@@ -996,18 +1179,15 @@
     function fitActiveTerminal(){
         const t = getActive();
         if (!t) return;
-
         // 如果当前是全屏模式，直接适配全屏
         if (isFullscreen) {
             t.fitAddon.fit();
             updateStatus(t.term);
             return;
         }
-
         // 否则适配当前窗口
         t.fitAddon.fit();
         updateStatus(t.term);
-
         // 发送窗口大小调整消息到后端
         if (stompClient && connected) {
             stompClient.send('/app/ssh/resize', {}, JSON.stringify({
@@ -1020,8 +1200,6 @@
     // 切换全屏模式
     function toggleFullscreen() {
         const terminalContainer = document.getElementById('terminal-container');
-        const terminalCard = terminalContainer.querySelector('.card');
-
         if (!isFullscreen) {
             // 进入全屏模式
             terminalContainer.classList.add('fullscreen-terminal');
@@ -1033,14 +1211,12 @@
             document.querySelector('[onclick="fitActiveTerminal()"]').innerHTML = '<i class="fa fa-expand"></i> 全屏终端';
             isFullscreen = false;
         }
-
         // 适配终端大小
         setTimeout(() => {
             const t = getActive();
             if (t) {
                 t.fitAddon.fit();
                 updateStatus(t.term);
-
                 // 发送窗口大小调整消息到后端
                 if (stompClient && connected) {
                     stompClient.send('/app/ssh/resize', {}, JSON.stringify({
@@ -1079,9 +1255,339 @@
         document.getElementById('statusRight').textContent = `行: ${term.rows}, 列: ${term.cols}`;
     }
 
-    // ===== Files (placeholder) =====
-    function showUploadModal(){ document.getElementById("uploadModal").classList.remove("hidden"); }
-    function closeModal(id){ document.getElementById(id).classList.add("hidden"); }
+    // ===== 文件管理功能 =====
+
+    // 刷新文件页面的服务器列表
+    async function refreshFilesPage() {
+        const container = document.getElementById('filesServerList');
+        container.innerHTML = '<div class="alert info">正在加载服务器列表...</div>';
+
+        try {
+            const servers = await fetchServers();
+
+            if (servers.length === 0) {
+                container.innerHTML = '<div class="alert warn">暂无服务器配置，请先在 SSH 连接页面添加服务器。</div>';
+                return;
+            }
+
+            container.innerHTML = '';
+            const grid = document.createElement('div');
+            grid.className = 'grid cols-2';
+
+            servers.forEach(server => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <div class="card-hd">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <i class="fa fa-server"></i>
+                            <b>${server.name || `${server.host}:${server.port}`}</b>
+                        </div>
+                    </div>
+                    <div class="card-bd">
+                        <div style="margin-bottom: 15px;">
+                            <div><strong>地址:</strong> ${server.host}:${server.port}</div>
+                            <div><strong>用户:</strong> ${server.username}</div>
+                        </div>
+                        <div class="text-right">
+                            <button class="btn primary" onclick='openFileManagerForServer(${JSON.stringify(server).replace(/'/g, "\\'")})'>
+                                <i class="fa fa-folder-open"></i> 管理文件
+                            </button>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+
+            container.appendChild(grid);
+        } catch (error) {
+            container.innerHTML = `<div class="alert error">加载服务器列表失败: ${error.message}</div>`;
+        }
+    }
+
+    // 为特定服务器打开文件管理器
+    function openFileManagerForServer(server) {
+        currentFileManagerServer = server;
+        document.getElementById('fileManagerServerName').textContent = server.name || `${server.host}:${server.port}`;
+        currentPath = "/";
+        document.getElementById('currentPath').textContent = currentPath;
+        document.getElementById('fileManagerModal').classList.remove('hidden');
+        listFiles();
+    }
+
+    // 关闭文件管理器
+    function closeFileManager() {
+        document.getElementById('fileManagerModal').classList.add('hidden');
+        currentFileManagerServer = null;
+        selectedFile = null;
+        document.getElementById('fileContextMenu').classList.remove('show');
+    }
+
+    // 列出文件
+    async function listFiles(path = currentPath) {
+        if (!currentFileManagerServer) {
+            alertErr('未选择服务器');
+            return;
+        }
+
+        const fileList = document.getElementById('fileList');
+        fileList.innerHTML = '<div class="alert info">正在加载文件列表...</div>';
+
+        // 更新路径显示
+        currentPath = path;
+        document.getElementById('currentPath').textContent = currentPath;
+
+        try {
+            const response = await fetch(`/api/servers/${currentFileManagerServer.id}/files?path=${encodeURIComponent(path)}`);
+            const result = await response.json();
+
+            if (!result.success) {
+                fileList.innerHTML = `<div class="alert error">加载失败: ${result.message}</div>`;
+                return;
+            }
+
+            const files = result.data || [];
+            displayFiles(files);
+        } catch (error) {
+            fileList.innerHTML = `<div class="alert error">请求失败: ${error.message}</div>`;
+        }
+    }
+
+    // 显示文件列表
+    function displayFiles(files) {
+        const fileList = document.getElementById('fileList');
+        fileList.innerHTML = ''; // 清空现有内容
+
+        if (files.length === 0) {
+            fileList.innerHTML = '<div class="alert info">此目录为空</div>';
+            return;
+        }
+
+        files.forEach(file => {
+            const card = document.createElement('div');
+            card.className = `file-card ${file.isDirectory ? 'directory' : 'file'}`;
+            card.dataset.name = file.name;
+            card.dataset.isDirectory = file.isDirectory;
+
+            // 确定图标
+            let iconClass = 'fa fa-file';
+            if (file.isDirectory) {
+                iconClass = 'fa fa-folder';
+            } else {
+                const ext = file.name.split('.').pop().toLowerCase();
+                if (['jpg', 'jpeg', 'png', 'gif', 'bmp'].includes(ext)) {
+                    iconClass = 'fa fa-image';
+                } else if (['txt', 'log', 'md'].includes(ext)) {
+                    iconClass = 'fa fa-file-alt';
+                } else if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) {
+                    iconClass = 'fa fa-file-archive';
+                } else if (['mp4', 'avi', 'mov', 'mkv'].includes(ext)) {
+                    iconClass = 'fa fa-file-video';
+                } else if (['mp3', 'wav', 'flac'].includes(ext)) {
+                    iconClass = 'fa fa-file-audio';
+                }
+            }
+
+            card.innerHTML = `
+                <div class="icon"><i class="${iconClass}"></i></div>
+                <div class="name">${file.name}</div>
+            `;
+
+            // 左键点击事件
+            card.addEventListener('click', (e) => {
+                // 隐藏任何已显示的上下文菜单
+                document.getElementById('fileContextMenu').classList.remove('show');
+
+                if (file.isDirectory) {
+                    // 如果是目录，则进入
+                    const newPath = currentPath === '/' ? `/${file.name}` : `${currentPath}/${file.name}`;
+                    listFiles(newPath);
+                } else {
+                    // 如果是文件，可以选择高亮显示或不做特殊处理，等待右键菜单
+                    selectedFile = file;
+                    document.querySelectorAll('.file-card').forEach(c => c.classList.remove('selected'));
+                    card.classList.add('selected');
+                }
+            });
+
+            // 右键点击事件 (上下文菜单)
+            card.addEventListener('contextmenu', (e) => {
+                e.preventDefault(); // 阻止默认右键菜单
+
+                // 记录当前选中的文件
+                selectedFile = file;
+
+                // 移除其他卡片的选中状态
+                document.querySelectorAll('.file-card').forEach(c => c.classList.remove('selected'));
+                // 添加选中状态到当前卡片
+                card.classList.add('selected');
+
+                // 显示自定义上下文菜单
+                const menu = document.getElementById('fileContextMenu');
+                menu.style.top = `${e.clientY}px`;
+                menu.style.left = `${e.clientX}px`;
+                menu.classList.add('show');
+            });
+
+            fileList.appendChild(card);
+        });
+    }
+
+    // 返回上级目录
+    function goToParentDirectory() {
+        if (currentPath === '/') return;
+
+        const parts = currentPath.split('/').filter(p => p);
+        parts.pop(); // 移除最后一个部分
+        const newPath = parts.length > 0 ? '/' + parts.join('/') : '/';
+
+        listFiles(newPath);
+    }
+
+    // 刷新文件管理器
+    function refreshFileManager() {
+        listFiles(currentPath);
+    }
+
+    // 全局点击事件监听器，用于隐藏上下文菜单
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.file-context-menu') && !e.target.closest('.file-card')) {
+            document.getElementById('fileContextMenu').classList.remove('show');
+        }
+    });
+
+    // ===== 文件操作函数 =====
+
+    // 下载选中的文件
+    function downloadSelectedFile() {
+        if (!selectedFile || !currentFileManagerServer) {
+            alertWarn('请先选择一个文件');
+            return;
+        }
+
+        if (selectedFile.isDirectory) {
+            alertWarn('不能下载目录');
+            return;
+        }
+
+        const fullPath = currentPath === '/' ? `/${selectedFile.name}` : `${currentPath}/${selectedFile.name}`;
+        const url = `/api/servers/${currentFileManagerServer.id}/download?path=${encodeURIComponent(fullPath)}`;
+
+        // 创建一个隐藏的下载链接并点击它
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = selectedFile.name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // 隐藏菜单
+        document.getElementById('fileContextMenu').classList.remove('show');
+    }
+
+    // 删除选中的文件/目录
+    async function deleteSelectedFile() {
+        if (!selectedFile || !currentFileManagerServer) {
+            alertWarn('请先选择一个文件或目录');
+            return;
+        }
+
+        if (!confirm(`确定要删除 "${selectedFile.name}" 吗?`)) {
+            // 隐藏菜单
+            document.getElementById('fileContextMenu').classList.remove('show');
+            return;
+        }
+
+        const fullPath = currentPath === '/' ? `/${selectedFile.name}` : `${currentPath}/${selectedFile.name}`;
+
+        try {
+            const response = await fetch(`/api/servers/${currentFileManagerServer.id}/file`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    path: fullPath,
+                    isDirectory: selectedFile.isDirectory
+                })
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                alertOk('删除成功');
+                listFiles(currentPath); // 刷新当前目录
+            } else {
+                alertErr('删除失败: ' + result.message);
+            }
+        } catch (error) {
+            alertErr('请求失败: ' + error.message);
+        }
+
+        // 隐藏菜单
+        document.getElementById('fileContextMenu').classList.remove('show');
+    }
+
+    // 重命名选中的文件/目录
+    async function renameSelectedFile() {
+        if (!selectedFile || !currentFileManagerServer) {
+            alertWarn('请先选择一个文件或目录');
+            return;
+        }
+
+        const newName = prompt('请输入新的名称:', selectedFile.name);
+        if (!newName || newName === selectedFile.name) {
+            // 隐藏菜单
+            document.getElementById('fileContextMenu').classList.remove('show');
+            return;
+        }
+
+        const oldPath = currentPath === '/' ? `/${selectedFile.name}` : `${currentPath}/${selectedFile.name}`;
+        const newPath = currentPath === '/' ? `/${newName}` : `${currentPath}/${newName}`;
+
+        try {
+            const response = await fetch(`/api/servers/${currentFileManagerServer.id}/rename`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    oldPath: oldPath,
+                    newPath: newPath
+                })
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                alertOk('重命名成功');
+                listFiles(currentPath); // 刷新当前目录
+            } else {
+                alertErr('重命名失败: ' + result.message);
+            }
+        } catch (error) {
+            alertErr('请求失败: ' + error.message);
+        }
+
+        // 隐藏菜单
+        document.getElementById('fileContextMenu').classList.remove('show');
+    }
+
+    // 显示上传模态框
+    function showUploadModal() {
+        if (!currentFileManagerServer) {
+            alertErr('未选择服务器');
+            return;
+        }
+        document.getElementById('uploadPath').value = currentPath;
+        document.getElementById("uploadModal").classList.remove("hidden");
+    }
+
+    // 关闭上传模态框
+    function closeUploadModal() {
+        document.getElementById('uploadModal').classList.add('hidden');
+        document.getElementById('uploadFiles').value = '';
+    }
+
+    // 处理文件上传
     async function handleUpload() {
         const fileInput = document.getElementById('uploadFiles');
         const uploadPath = document.getElementById('uploadPath').value;
@@ -1092,6 +1598,11 @@
             return;
         }
 
+        if (!currentFileManagerServer) {
+            alertErr('未选择服务器');
+            return;
+        }
+
         const formData = new FormData();
         for (let i = 0; i < files.length; i++) {
             formData.append('files', files[i]);
@@ -1099,16 +1610,16 @@
         formData.append('path', uploadPath);
 
         try {
-            const res = await fetch('/api/servers/upload', {
+            const response = await fetch(`/api/servers/${currentFileManagerServer.id}/upload`, {
                 method: 'POST',
                 body: formData
             });
 
-            const data = await res.json();
+            const data = await response.json();
             if (data.success) {
-                alertOk(`成功上传 ${data.savedFiles.length} 个文件`);
-                closeModal('uploadModal');
-                fileInput.value = ''; // 清空选择
+                alertOk(`成功上传 ${files.length} 个文件`);
+                closeUploadModal();
+                listFiles(uploadPath); // 刷新文件列表
             } else {
                 alertErr('上传失败: ' + data.message);
             }
@@ -1116,14 +1627,56 @@
             alertErr('请求失败: ' + err.message);
         }
     }
-    function refreshFiles(){
-        const g = document.getElementById('fileGrid');
-        g.innerHTML = '';
-        for (let i=0;i<6;i++){
-            const c=document.createElement('div');
-            c.className='file-card';
-            c.textContent='文件占位 '+(i+1);
-            g.appendChild(c);
+
+    // 显示新建目录模态框
+    function showCreateDirModal() {
+        if (!currentFileManagerServer) {
+            alertErr('未选择服务器');
+            return;
+        }
+        document.getElementById('newDirName').value = '';
+        document.getElementById('createDirModal').classList.remove('hidden');
+    }
+
+    // 关闭新建目录模态框
+    function closeCreateDirModal() {
+        document.getElementById('createDirModal').classList.add('hidden');
+    }
+
+    // 创建目录
+    async function createDirectory() {
+        if (!currentFileManagerServer) {
+            alertErr('未选择服务器');
+            return;
+        }
+
+        const dirName = document.getElementById('newDirName').value.trim();
+        if (!dirName) {
+            alertWarn('请输入目录名称');
+            return;
+        }
+
+        const fullPath = currentPath === '/' ? `/${dirName}` : `${currentPath}/${dirName}`;
+
+        try {
+            const response = await fetch(`/api/servers/${currentFileManagerServer.id}/mkdir`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ path: fullPath })
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                alertOk('目录创建成功');
+                closeCreateDirModal();
+                listFiles(currentPath); // 刷新当前目录
+            } else {
+                alertErr('创建目录失败: ' + result.message);
+            }
+        } catch (error) {
+            alertErr('请求失败: ' + error.message);
         }
     }
 
@@ -1135,10 +1688,8 @@
             document.body.classList.add('theme-light');
             document.querySelector('.side-actions .btn.ghost i').className = 'fa fa-sun';
         }
-
         fetchServers();
-        refreshFiles();
-
+        refreshFilesPage();
         // 创建默认终端标签
         setTimeout(createNewTab, 500);
     });

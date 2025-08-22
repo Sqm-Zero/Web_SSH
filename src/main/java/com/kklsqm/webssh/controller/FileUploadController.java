@@ -1,6 +1,8 @@
 package com.kklsqm.webssh.controller;
 
 import com.kklsqm.webssh.domain.SshService;
+import com.kklsqm.webssh.domain.dto.DeleteRequest;
+import com.kklsqm.webssh.domain.dto.RenameRequest;
 import com.kklsqm.webssh.service.FileTransferService;
 import com.kklsqm.webssh.service.SshServiceService;
 import lombok.RequiredArgsConstructor;
@@ -106,11 +108,10 @@ public class FileUploadController {
     @DeleteMapping("/{id}/file")
     public ResponseEntity<?> deleteFile(
             @PathVariable Long id,
-            @RequestParam String path,
-            @RequestParam boolean isDirectory) {
+            @RequestBody DeleteRequest deleteRequest) {
         SshService server = getSshService(id);
         try {
-            fileTransferService.deleteRemoteFile(server, path, isDirectory);
+            fileTransferService.deleteRemoteFile(server, deleteRequest.getPath(), deleteRequest.isDirectory());
             return ResponseEntity.ok(Map.of("success", true, "message", "删除成功"));
         } catch (Exception e) {
             return error("删除失败: " + e.getMessage());
@@ -123,11 +124,10 @@ public class FileUploadController {
     @PutMapping("/{id}/rename")
     public ResponseEntity<?> renameFile(
             @PathVariable Long id,
-            @RequestParam String oldPath,
-            @RequestParam String newPath) {
+            @RequestBody RenameRequest renameRequest) {
         SshService server = getSshService(id);
         try {
-            fileTransferService.renameRemoteFile(server, oldPath, newPath);
+            fileTransferService.renameRemoteFile(server, renameRequest.getOldPath(), renameRequest.getNewPath());
             return ResponseEntity.ok(Map.of("success", true, "message", "重命名成功"));
         } catch (Exception e) {
             return error("重命名失败: " + e.getMessage());
