@@ -452,6 +452,33 @@
             color: #1e293b;
         }
 
+        /* 日志面板样式 (如果需要额外调整) */
+        #logPanel {
+            /* 样式已在 HTML 中定义，这里可以添加更多全局样式 */
+        }
+        .log-message {
+            padding: 2px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .theme-light .log-message {
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        }
+        .log-timestamp {
+            color: var(--muted);
+            margin-right: 8px;
+        }
+        .theme-light .log-timestamp {
+            color: #94a3b8;
+        }
+        .log-info { color: #93c5fd; }    /* 蓝色 */
+        .theme-light .log-info { color: #3b82f6; }
+        .log-success { color: #86efac; } /* 绿色 */
+        .theme-light .log-success { color: #22c55e; }
+        .log-warn { color: #fde047; }    /* 黄色 */
+        .theme-light .log-warn { color: #eab308; }
+        .log-error { color: #fca5a5; }   /* 红色 */
+        .theme-light .log-error { color: #ef4444; }
+
         /* Utility */
         .mt-10{ margin-top:10px;} .mt-16{margin-top:16px;} .mt-20{margin-top:20px;}
         .hidden { display:none; }
@@ -736,7 +763,7 @@
                                     <i class="fa fa-bookmark"></i> 保存此服务器配置
                                 </button>
                             </div>
-                            <div id="alertContainer" class="mt-16"></div>
+<!--                            <div id="alertContainer" class="mt-16"></div>-->
                         </div>
                     </div>
                 </div>
@@ -753,6 +780,7 @@
             </div>
 
             <!-- Terminal - 修复滚动条问题 -->
+            <!-- Terminal - 修复滚动条问题 -->
             <div id="terminal-container" style="padding: 0 16px 16px; flex: 1; display: flex; flex-direction: column; overflow: hidden;">
                 <div class="card" style="height: 100%; display: flex; flex-direction: column;">
                     <div class="card-hd" style="justify-content: flex-start; gap:8px;">
@@ -760,8 +788,15 @@
                             <button class="btn ghost" onclick="createNewTab()"><i class="fa fa-plus"></i> 新建终端</button>
                             <button class="btn ghost" onclick="fitActiveTerminal()"><i class="fa fa-expand"></i> 全屏终端</button>
                             <button class="btn ghost" onclick="clearActive()"><i class="fa fa-eraser"></i> 清屏</button>
+                            <!-- 添加切换日志显示的按钮 -->
+                            <button class="btn ghost" onclick="toggleLogPanel()"><i class="fa fa-history"></i> 日志</button>
                         </div>
                     </div>
+                    <!-- 添加日志面板 (默认隐藏) -->
+                    <div id="logPanel" class="card-bd hidden" style="border-top: 1px solid var(--border); padding: 10px; height: 200px; overflow-y: auto; background: rgba(0,0,0,0.1);">
+                        <div id="logMessages" style="font-family: monospace; font-size: 0.85em;"></div>
+                    </div>
+                    <!-- /添加日志面板 -->
                     <div class="card-bd" style="flex: 1; overflow: hidden; display: flex; flex-direction: column;">
                         <div class="terminal-wrap">
                             <div class="tabs" id="terminalTabs"></div>
@@ -979,6 +1014,66 @@
         document.getElementById('password').value = server.password || '';
         document.getElementById('serverName').value = server.name || '';
         alertOk('已加载服务器配置');
+    }
+
+    // --- 新增：日志面板控制 ---
+    function toggleLogPanel() {
+        const logPanel = document.getElementById('logPanel');
+        if (logPanel) { // 安全检查
+            logPanel.classList.toggle('hidden');
+            if (!logPanel.classList.contains('hidden')) {
+                const logMessages = document.getElementById('logMessages');
+                if (logMessages) {
+                    logMessages.scrollTop = logMessages.scrollHeight;
+                }
+            }
+        }
+    }
+
+    // --- 新增：添加日志到面板 ---
+    function addLogToPanel(type, msg) {
+        const logPanel = document.getElementById('logPanel');
+        const logMessages = document.getElementById('logMessages');
+        // 只有当日志面板存在时才添加日志
+        if (logPanel && logMessages) {
+            const now = new Date();
+            const timestamp = `[${now.toLocaleTimeString()}]`;
+
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-message log-${type}`;
+            logEntry.innerHTML = `<span class="log-timestamp">${timestamp}</span> ${msg}`;
+
+            logMessages.appendChild(logEntry);
+
+            const maxLogs = 100;
+            while (logMessages.children.length > maxLogs) {
+                logMessages.removeChild(logMessages.firstChild);
+            }
+
+            logMessages.scrollTop = logMessages.scrollHeight;
+        }
+        // 如果没有日志面板，则静默忽略
+    }
+
+    // --- 修改：Alert 函数现在也写入日志面板 ---
+    function alertInfo(msg) {
+        // 可以保留短暂提示，或者移除
+        console.log("[INFO]", msg); // 至少在控制台记录
+        addLogToPanel('info', msg); // 如果有日志面板则添加
+    }
+    function alertOk(msg) {
+        console.log("[OK]", msg);
+        addLogToPanel('success', msg);
+    }
+    function alertWarn(msg) {
+        // pushAlert('warn', msg);
+        console.warn("[WARN]", msg);
+        addLogToPanel('warn', msg);
+    }
+    function alertErr(msg) {
+        // pushAlert('error', msg);
+        console.error("[ERROR]", msg);
+        addLogToPanel('error', msg);
     }
 
     // ===== STOMP connect / flow =====
