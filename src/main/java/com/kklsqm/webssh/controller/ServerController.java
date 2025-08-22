@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 功能:
+ * 功能:  服务器管理
  * 作者: 沙琪马
  * 日期: 2025/8/19 19:58
  */
@@ -38,7 +38,7 @@ public class ServerController {
     @PostMapping
     public ResponseEntity<Map<String, Object>> addServer(@RequestBody SshService server) {
         try {
-            serverService.save(server);
+            serverService.saveOrUpdate(server);
             return ResponseEntity.ok(Map.of("success", true, "id", server.getId()));
         } catch (Exception e) {
             return ResponseEntity.badRequest()

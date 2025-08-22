@@ -736,15 +736,6 @@
         document.getElementById('serverName').value = server.name || '';
         alertOk('已加载服务器配置');
     }
-    /*function saveServerIfNeeded(host, port, username, password){
-        if (!document.getElementById('saveServer').checked) return;
-        const list = JSON.parse(localStorage.getItem(KEY) || '[]');
-        const name = document.getElementById('serverName').value;
-        list.push({ host, port, username, password, name });
-        localStorage.setItem(KEY, JSON.stringify(list));
-        loadSavedServers();
-        alertOk('已保存服务器配置');
-    }*/
 
     // ===== STOMP connect / flow =====
     function ensureStompConnected(onReady){
