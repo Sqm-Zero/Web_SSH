@@ -396,6 +396,7 @@
             color: var(--muted);
         }
 
+        /* 文件路径区域增强 */
         .file-path {
             padding: 10px 15px;
             background: rgba(30, 41, 59, 0.5);
@@ -409,13 +410,46 @@
             background: rgba(226, 232, 240, 0.5);
         }
 
-        .file-path .path {
+        .file-path .path-container {
             flex: 1;
+            min-width: 0; /* 允许内部文本溢出隐藏 */
+        }
+
+        .file-path .path-display {
             font-family: monospace;
             font-size: 0.9em;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            cursor: pointer; /* 提示可点击 */
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        .file-path .path-display:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .theme-light .file-path .path-display:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+
+        .file-path .path-input {
+            font-family: monospace;
+            font-size: 0.9em;
+            width: 100%;
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            background: var(--card);
+            color: var(--text);
+        }
+
+        .theme-light .file-path .path-input {
+            border: 1px solid #cbd5e1;
+            background: #f1f5f9;
+            color: #1e293b;
         }
 
         /* Utility */
@@ -777,7 +811,12 @@
         </div>
         <div class="file-path">
             <button class="btn ghost" onclick="goToParentDirectory()"><i class="fa fa-arrow-up"></i> 上级</button>
-            <div class="path" id="currentPath">/</div>
+            <!-- 修改路径显示区域 -->
+            <div class="path-container">
+                <div id="currentPathDisplay" class="path-display" title="点击跳转到路径">/</div>
+                <input type="text" id="currentPathInput" class="path-input hidden" placeholder="输入路径..." />
+            </div>
+            <!-- /修改路径显示区域 -->
             <button class="btn ghost" onclick="refreshFileManager()"><i class="fa fa-sync"></i></button>
         </div>
         <div class="modal-body">
@@ -1255,7 +1294,266 @@
         document.getElementById('statusRight').textContent = `行: ${term.rows}, 列: ${term.cols}`;
     }
 
-    // ===== 文件管理功能 =====
+    // ===== 文件管理功能 (优化版) =====
+
+    // 预定义文件类型图标映射 (提升性能)
+    const FILE_TYPE_ICONS = {
+        // 图片
+        'image': ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp'],
+        // 文档
+        'document': ['txt', 'log', 'md', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'],
+        // 压缩包
+        'archive': ['zip', 'rar', '7z', 'tar', 'gz', 'bz2'],
+        // 视频
+        'video': ['mp4', 'avi', 'mov', 'mkv', 'wmv', 'flv', 'webm'],
+        // 音频
+        'audio': ['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a'],
+        // 代码
+        'code': ['js', 'ts', 'html', 'css', 'java', 'py', 'cpp', 'c', 'h', 'php', 'rb', 'go', 'rs', 'sh', 'sql']
+    };
+
+    // 获取文件图标类名
+    function getFileIconClass(filename, isDirectory) {
+        if (isDirectory) {
+            return 'fa fa-folder';
+        }
+
+        const ext = filename.split('.').pop().toLowerCase();
+        for (const [type, extensions] of Object.entries(FILE_TYPE_ICONS)) {
+            if (extensions.includes(ext)) {
+                switch (type) {
+                    case 'image': return 'fa fa-image';
+                    case 'document': return 'fa fa-file-alt';
+                    case 'archive': return 'fa fa-file-archive';
+                    case 'video': return 'fa fa-file-video';
+                    case 'audio': return 'fa fa-file-audio';
+                    case 'code': return 'fa fa-file-code';
+                    default: break; // 继续循环
+                }
+            }
+        }
+        // 默认文件图标
+        return 'fa fa-file';
+    }
+
+    // 为特定服务器打开文件管理器
+    function openFileManagerForServer(server) {
+        currentFileManagerServer = server;
+        document.getElementById('fileManagerServerName').textContent = server.name || `${server.host}:${server.port}`;
+        currentPath = "/";
+        updatePathDisplay(currentPath); // 更新路径显示
+        document.getElementById('fileManagerModal').classList.remove('hidden');
+        listFiles();
+    }
+
+    // 更新路径显示
+    function updatePathDisplay(path) {
+        const displayElement = document.getElementById('currentPathDisplay');
+        const inputElement = document.getElementById('currentPathInput');
+        displayElement.textContent = path;
+        displayElement.title = `点击跳转到: ${path}`;
+        inputElement.value = path; // 同步输入框值
+    }
+
+    // 激活路径输入框
+    function activatePathInput() {
+        const displayElement = document.getElementById('currentPathDisplay');
+        const inputElement = document.getElementById('currentPathInput');
+        displayElement.classList.add('hidden');
+        inputElement.classList.remove('hidden');
+        inputElement.focus();
+        inputElement.select(); // 选中所有文本方便编辑
+    }
+
+    // 停用路径输入框
+    function deactivatePathInput() {
+        const displayElement = document.getElementById('currentPathDisplay');
+        const inputElement = document.getElementById('currentPathInput');
+        displayElement.classList.remove('hidden');
+        inputElement.classList.add('hidden');
+    }
+
+    // 列出文件 (优化版)
+    async function listFiles(path = currentPath) {
+        if (!currentFileManagerServer) {
+            alertErr('未选择服务器');
+            return;
+        }
+
+        const fileList = document.getElementById('fileList');
+        fileList.innerHTML = '<div class="alert info">正在加载文件列表...</div>';
+
+        // 更新路径状态和显示
+        currentPath = path;
+        updatePathDisplay(currentPath);
+
+        try {
+            const response = await fetch(`/api/servers/${currentFileManagerServer.id}/files?path=${encodeURIComponent(path)}`);
+            const result = await response.json();
+
+            if (!result.success) {
+                fileList.innerHTML = `<div class="alert error">加载失败: ${result.message}</div>`;
+                return;
+            }
+
+            const files = result.data || [];
+            displayFilesOptimized(files); // 使用优化的显示函数
+        } catch (error) {
+            fileList.innerHTML = `<div class="alert error">请求失败: ${error.message}</div>`;
+        }
+    }
+
+    // 优化的文件列表显示函数 (使用事件委托)
+    function displayFilesOptimized(files) {
+        const fileList = document.getElementById('fileList');
+        fileList.innerHTML = ''; // 清空现有内容
+
+        if (files.length === 0) {
+            fileList.innerHTML = '<div class="alert info">此目录为空</div>';
+            return;
+        }
+
+        // 使用 DocumentFragment 提高渲染性能
+        const fragment = document.createDocumentFragment();
+
+        files.forEach(file => {
+            const card = document.createElement('div');
+            card.className = `file-card ${file.isDirectory ? 'directory' : 'file'}`;
+            card.dataset.name = file.name;
+            card.dataset.isDirectory = file.isDirectory;
+
+            // 使用优化后的图标获取函数
+            const iconClass = getFileIconClass(file.name, file.isDirectory);
+
+            card.innerHTML = `
+                <div class="icon"><i class="${iconClass}"></i></div>
+                <div class="name">${file.name}</div>
+            `;
+            fragment.appendChild(card);
+        });
+
+        fileList.appendChild(fragment);
+
+        // 使用事件委托处理点击和右键菜单
+        fileList.removeEventListener('click', handleFileClick); // 先移除旧监听器避免重复
+        fileList.removeEventListener('contextmenu', handleFileContextMenu);
+        fileList.addEventListener('click', handleFileClick);
+        fileList.addEventListener('contextmenu', handleFileContextMenu);
+    }
+
+    // 文件点击事件处理函数 (事件委托)
+    function handleFileClick(e) {
+        // 隐藏上下文菜单
+        document.getElementById('fileContextMenu').classList.remove('show');
+
+        // 查找被点击的文件卡片
+        let targetCard = e.target.closest('.file-card');
+        if (!targetCard) return; // 点击的不是文件卡片
+
+        const isDirectory = targetCard.dataset.isDirectory === 'true';
+        const filename = targetCard.dataset.name;
+
+        if (isDirectory) {
+            // 如果是目录，则进入
+            const newPath = currentPath === '/' ? `/${filename}` : `${currentPath}/${filename}`;
+            listFiles(newPath);
+        } else {
+            // 如果是文件，可以选择高亮显示或不做特殊处理
+            // 这里我们简单记录选中文件
+            selectedFile = { name: filename, isDirectory: isDirectory };
+            // 移除其他卡片的选中状态 (如果需要视觉反馈)
+            document.querySelectorAll('.file-card').forEach(c => c.classList.remove('selected'));
+            // 添加选中状态到当前卡片 (如果需要视觉反馈)
+            targetCard.classList.add('selected');
+        }
+    }
+
+    // 文件右键菜单事件处理函数 (事件委托)
+    function handleFileContextMenu(e) {
+        e.preventDefault(); // 阻止默认右键菜单
+
+        // 查找被右键点击的文件卡片
+        let targetCard = e.target.closest('.file-card');
+        if (!targetCard) return; // 右键点击的不是文件卡片
+
+        const isDirectory = targetCard.dataset.isDirectory === 'true';
+        const filename = targetCard.dataset.name;
+
+        // 记录当前选中的文件
+        selectedFile = { name: filename, isDirectory: isDirectory };
+
+        // 移除其他卡片的选中状态
+        document.querySelectorAll('.file-card').forEach(c => c.classList.remove('selected'));
+        // 添加选中状态到当前卡片
+        targetCard.classList.add('selected');
+
+        // 显示自定义上下文菜单
+        const menu = document.getElementById('fileContextMenu');
+        menu.style.top = `${e.clientY}px`;
+        menu.style.left = `${e.clientX}px`;
+        menu.classList.add('show');
+    }
+
+    // 全局点击事件监听器，用于隐藏上下文菜单和处理路径输入
+    document.removeEventListener('click', handleGlobalClick); // 移除可能的旧监听器
+    document.addEventListener('click', handleGlobalClick);
+
+    function handleGlobalClick(e) {
+        // 隐藏上下文菜单 (如果点击的不是菜单本身或文件卡片)
+        if (!e.target.closest('.file-context-menu') && !e.target.closest('.file-card')) {
+            document.getElementById('fileContextMenu').classList.remove('show');
+            // 可选：取消选中文件
+            // selectedFile = null;
+            // document.querySelectorAll('.file-card').forEach(c => c.classList.remove('selected'));
+        }
+
+        // 处理路径输入框失去焦点 (如果点击的不是路径相关元素)
+        const pathDisplay = document.getElementById('currentPathDisplay');
+        const pathInput = document.getElementById('currentPathInput');
+        if (!pathDisplay.contains(e.target) && !pathInput.contains(e.target)) {
+            // 如果输入框是可见的，则尝试跳转并隐藏它
+            if (!pathInput.classList.contains('hidden')) {
+                const newPath = pathInput.value.trim();
+                if (newPath && newPath !== currentPath) {
+                    listFiles(newPath); // 尝试跳转到新路径
+                }
+                deactivatePathInput(); // 无论如何都隐藏输入框
+            }
+        }
+    }
+
+    // 路径输入框按键处理
+    document.getElementById('currentPathInput').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            const newPath = this.value.trim();
+            if (newPath && newPath !== currentPath) {
+                listFiles(newPath); // 尝试跳转到新路径
+            }
+            deactivatePathInput(); // 跳转后隐藏输入框
+        } else if (e.key === 'Escape') {
+            // ESC 键取消编辑
+            deactivatePathInput();
+            updatePathDisplay(currentPath); // 恢复显示原始路径
+        }
+    });
+
+    // 刷新文件管理器
+    function refreshFileManager() {
+        listFiles(currentPath);
+    }
+
+    // 返回上级目录 (保持不变)
+    function goToParentDirectory() {
+        if (currentPath === '/') return;
+
+        const parts = currentPath.split('/').filter(p => p);
+        parts.pop(); // 移除最后一个部分
+        const newPath = parts.length > 0 ? '/' + parts.join('/') : '/';
+
+        listFiles(newPath);
+    }
+
+    // ===== 文件操作函数 (保持不变或微调) =====
 
     // 刷新文件页面的服务器列表
     async function refreshFilesPage() {
@@ -1305,16 +1603,6 @@
         }
     }
 
-    // 为特定服务器打开文件管理器
-    function openFileManagerForServer(server) {
-        currentFileManagerServer = server;
-        document.getElementById('fileManagerServerName').textContent = server.name || `${server.host}:${server.port}`;
-        currentPath = "/";
-        document.getElementById('currentPath').textContent = currentPath;
-        document.getElementById('fileManagerModal').classList.remove('hidden');
-        listFiles();
-    }
-
     // 关闭文件管理器
     function closeFileManager() {
         document.getElementById('fileManagerModal').classList.add('hidden');
@@ -1323,150 +1611,19 @@
         document.getElementById('fileContextMenu').classList.remove('show');
     }
 
-    // 列出文件
-    async function listFiles(path = currentPath) {
-        if (!currentFileManagerServer) {
-            alertErr('未选择服务器');
-            return;
-        }
-
-        const fileList = document.getElementById('fileList');
-        fileList.innerHTML = '<div class="alert info">正在加载文件列表...</div>';
-
-        // 更新路径显示
-        currentPath = path;
-        document.getElementById('currentPath').textContent = currentPath;
-
-        try {
-            const response = await fetch(`/api/servers/${currentFileManagerServer.id}/files?path=${encodeURIComponent(path)}`);
-            const result = await response.json();
-
-            if (!result.success) {
-                fileList.innerHTML = `<div class="alert error">加载失败: ${result.message}</div>`;
-                return;
-            }
-
-            const files = result.data || [];
-            displayFiles(files);
-        } catch (error) {
-            fileList.innerHTML = `<div class="alert error">请求失败: ${error.message}</div>`;
-        }
-    }
-
-    // 显示文件列表
-    function displayFiles(files) {
-        const fileList = document.getElementById('fileList');
-        fileList.innerHTML = ''; // 清空现有内容
-
-        if (files.length === 0) {
-            fileList.innerHTML = '<div class="alert info">此目录为空</div>';
-            return;
-        }
-
-        files.forEach(file => {
-            const card = document.createElement('div');
-            card.className = `file-card ${file.isDirectory ? 'directory' : 'file'}`;
-            card.dataset.name = file.name;
-            card.dataset.isDirectory = file.isDirectory;
-
-            // 确定图标
-            let iconClass = 'fa fa-file';
-            if (file.isDirectory) {
-                iconClass = 'fa fa-folder';
-            } else {
-                const ext = file.name.split('.').pop().toLowerCase();
-                if (['jpg', 'jpeg', 'png', 'gif', 'bmp'].includes(ext)) {
-                    iconClass = 'fa fa-image';
-                } else if (['txt', 'log', 'md'].includes(ext)) {
-                    iconClass = 'fa fa-file-alt';
-                } else if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) {
-                    iconClass = 'fa fa-file-archive';
-                } else if (['mp4', 'avi', 'mov', 'mkv'].includes(ext)) {
-                    iconClass = 'fa fa-file-video';
-                } else if (['mp3', 'wav', 'flac'].includes(ext)) {
-                    iconClass = 'fa fa-file-audio';
-                }
-            }
-
-            card.innerHTML = `
-                <div class="icon"><i class="${iconClass}"></i></div>
-                <div class="name">${file.name}</div>
-            `;
-
-            // 左键点击事件
-            card.addEventListener('click', (e) => {
-                // 隐藏任何已显示的上下文菜单
-                document.getElementById('fileContextMenu').classList.remove('show');
-
-                if (file.isDirectory) {
-                    // 如果是目录，则进入
-                    const newPath = currentPath === '/' ? `/${file.name}` : `${currentPath}/${file.name}`;
-                    listFiles(newPath);
-                } else {
-                    // 如果是文件，可以选择高亮显示或不做特殊处理，等待右键菜单
-                    selectedFile = file;
-                    document.querySelectorAll('.file-card').forEach(c => c.classList.remove('selected'));
-                    card.classList.add('selected');
-                }
-            });
-
-            // 右键点击事件 (上下文菜单)
-            card.addEventListener('contextmenu', (e) => {
-                e.preventDefault(); // 阻止默认右键菜单
-
-                // 记录当前选中的文件
-                selectedFile = file;
-
-                // 移除其他卡片的选中状态
-                document.querySelectorAll('.file-card').forEach(c => c.classList.remove('selected'));
-                // 添加选中状态到当前卡片
-                card.classList.add('selected');
-
-                // 显示自定义上下文菜单
-                const menu = document.getElementById('fileContextMenu');
-                menu.style.top = `${e.clientY}px`;
-                menu.style.left = `${e.clientX}px`;
-                menu.classList.add('show');
-            });
-
-            fileList.appendChild(card);
-        });
-    }
-
-    // 返回上级目录
-    function goToParentDirectory() {
-        if (currentPath === '/') return;
-
-        const parts = currentPath.split('/').filter(p => p);
-        parts.pop(); // 移除最后一个部分
-        const newPath = parts.length > 0 ? '/' + parts.join('/') : '/';
-
-        listFiles(newPath);
-    }
-
-    // 刷新文件管理器
-    function refreshFileManager() {
-        listFiles(currentPath);
-    }
-
-    // 全局点击事件监听器，用于隐藏上下文菜单
-    document.addEventListener('click', (e) => {
-        if (!e.target.closest('.file-context-menu') && !e.target.closest('.file-card')) {
-            document.getElementById('fileContextMenu').classList.remove('show');
-        }
-    });
-
-    // ===== 文件操作函数 =====
-
     // 下载选中的文件
     function downloadSelectedFile() {
         if (!selectedFile || !currentFileManagerServer) {
             alertWarn('请先选择一个文件');
+            // 隐藏菜单
+            document.getElementById('fileContextMenu').classList.remove('show');
             return;
         }
 
         if (selectedFile.isDirectory) {
             alertWarn('不能下载目录');
+            // 隐藏菜单
+            document.getElementById('fileContextMenu').classList.remove('show');
             return;
         }
 
@@ -1489,6 +1646,8 @@
     async function deleteSelectedFile() {
         if (!selectedFile || !currentFileManagerServer) {
             alertWarn('请先选择一个文件或目录');
+            // 隐藏菜单
+            document.getElementById('fileContextMenu').classList.remove('show');
             return;
         }
 
@@ -1501,6 +1660,7 @@
         const fullPath = currentPath === '/' ? `/${selectedFile.name}` : `${currentPath}/${selectedFile.name}`;
 
         try {
+            // 注意：这里假设后端 Controller 已经修改为使用 @RequestBody DeleteRequest
             const response = await fetch(`/api/servers/${currentFileManagerServer.id}/file`, {
                 method: 'DELETE',
                 headers: {
@@ -1531,6 +1691,8 @@
     async function renameSelectedFile() {
         if (!selectedFile || !currentFileManagerServer) {
             alertWarn('请先选择一个文件或目录');
+            // 隐藏菜单
+            document.getElementById('fileContextMenu').classList.remove('show');
             return;
         }
 
@@ -1545,6 +1707,7 @@
         const newPath = currentPath === '/' ? `/${newName}` : `${currentPath}/${newName}`;
 
         try {
+            // 注意：这里假设后端 Controller 已经修改为使用 @RequestBody RenameRequest
             const response = await fetch(`/api/servers/${currentFileManagerServer.id}/rename`, {
                 method: 'PUT',
                 headers: {
@@ -1700,6 +1863,9 @@
             toggleFullscreen();
         }
     });
+
+    // 为路径显示区域添加点击事件以激活输入框
+    document.getElementById('currentPathDisplay').addEventListener('click', activatePathInput);
 </script>
 </body>
 </html>
