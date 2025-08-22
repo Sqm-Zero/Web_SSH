@@ -1127,11 +1127,35 @@
             const res = await fetch('/api/servers');
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const servers = await res.json();
+
+            // === 添加这部分：将远程服务器填充到首页下拉列表 ===
+            // 注意：这里需要决定是 *替换* 本地列表还是 *合并* 本地列表
+            // 当前逻辑：用远程列表替换下拉列表内容
+            const sel = document.getElementById('savedServers');
+            if (sel) { // 确保元素存在
+                sel.innerHTML = '<option value="">选择已保存的服务器...</option>';
+                servers.forEach((s, idx) => {
+                    // 注意：这里的 value 和 loadSavedServers 略有不同，
+                    // 可以用索引，也可以用服务器ID，关键是要和 loadServerConfig 匹配
+                    // 这里暂时用索引加一个偏移量来区分远程和本地？或者用不同的标识？
+                    // 简单起见，先用索引，但 loadServerConfig 需要能处理
+                    // 更好的方式可能是统一数据结构或在 option 上加属性标识来源
+                    const opt = document.createElement('option');
+                    opt.value = `remote_${s.id}`; // 使用 remote_ 前缀和服务器ID区分
+                    opt.textContent = `${s.name || s.host}:${s.port} (${s.username})`;
+                    opt.dataset.server = JSON.stringify(s); // 存储完整数据
+                    sel.appendChild(opt);
+                });
+            }
+            // ======================================================
+
             return servers;
         } catch (err) {
             console.error('加载服务器列表失败:', err);
             alertErr('无法连接服务器列表: ' + err.message);
-            return [];
+            // 失败时仍可加载本地缓存
+            loadSavedServers(); // 回退到加载本地
+            return []; // 返回空数组
         }
     }
 
