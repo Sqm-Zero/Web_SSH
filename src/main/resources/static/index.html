@@ -830,7 +830,22 @@
         <section class="page hidden" id="page-settings">
             <div style="padding:16px;">
                 <div class="card"><div class="card-hd"><b>设置</b></div><div class="card-bd">
-                    <div class="alert info">保留占位，可加入主题、快捷键映射、字体大小等。</div>
+                    <div class="form-row">
+                        <label for="terminalFontFamily">字体</label>
+                        <select id="terminalFontFamily">
+                            <option value="monospace">默认等宽字体</option>
+                            <option value="'Fira Code', monospace">Fira Code</option>
+                            <option value="Monaco, monospace">Monaco</option>
+                            <option value="Consolas, monospace">Consolas</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label for="terminalFontSize">字体大小</label>
+                        <input type="number" id="terminalFontSize" min="10" max="30" value="14" />
+                    </div>
+                    <div class="mt-16 text-right">
+                        <button class="btn primary" onclick="applyTerminalSettings()">应用设置</button>
+                    </div>
                 </div></div>
             </div>
         </section>
@@ -947,6 +962,55 @@
         }
     }
 
+    const TERMINAL_THEMES = {
+        dark: {
+            background: '#0b0f1e',
+            foreground: '#e5e7eb',
+            cursor: '#e5e7eb',
+            cursorAccent: '#0b0f1e',
+            selection: 'rgba(59, 130, 246, 0.3)', // #3b82f6 with alpha
+            black: '#000000',
+            red: '#ef4444',
+            green: '#22c55e',
+            yellow: '#f59e0b',
+            blue: '#3b82f6',
+            magenta: '#8b5cf6',
+            cyan: '#06b6d4',
+            white: '#e5e7eb',
+            brightBlack: '#64748b',
+            brightRed: '#f87171',
+            brightGreen: '#4ade80',
+            brightYellow: '#fbbf24',
+            brightBlue: '#60a5fa',
+            brightMagenta: '#a78bfa',
+            brightCyan: '#22d3ee',
+            brightWhite: '#f8fafc'
+        },
+        light: {
+            background: '#f1f5f9',
+            foreground: '#1e293b',
+            cursor: '#1e293b',
+            cursorAccent: '#f1f5f9',
+            selection: 'rgba(147, 197, 253, 0.3)', // #93c5fd with alpha
+            black: '#000000',
+            red: '#ef4444',
+            green: '#10b981',
+            yellow: '#f59e0b',
+            blue: '#3b82f6',
+            magenta: '#8b5cf6',
+            cyan: '#0891b2',
+            white: '#1e293b',
+            brightBlack: '#94a3b8',
+            brightRed: '#f87171',
+            brightGreen: '#34d399',
+            brightYellow: '#fbbf24',
+            brightBlue: '#60a5fa',
+            brightMagenta: '#a78bfa',
+            brightCyan: '#06b6d4',
+            brightWhite: '#0f172a'
+        }
+    };
+
     function toggleTheme(){
         document.body.classList.toggle('theme-light');
         const themeIcon = document.querySelector('.side-actions .btn.ghost i');
@@ -955,30 +1019,17 @@
         } else {
             themeIcon.className = 'fa fa-moon';
         }
-        // 保存主题偏好到localStorage
         const isLight = document.body.classList.contains('theme-light');
         localStorage.setItem('webssh-theme', isLight ? 'light' : 'dark');
-        // 更新所有终端的主题
+
+        // --- 使用新的主题配置 ---
+        const newTheme = isLight ? TERMINAL_THEMES.light : TERMINAL_THEMES.dark;
         tabs.forEach(tab => {
             if (tab.term) {
-                tab.term.setOption('theme', {
-                    background: isLight ? '#f1f5f9' : '#0b0f1e'
-                });
+                // 使用 options.theme 而不是 setOption
+                tab.term.options.theme = newTheme;
             }
         });
-    }
-
-    function alertInfo(msg) { pushAlert('info', msg); }
-    function alertOk(msg) { pushAlert('success', msg); }
-    function alertWarn(msg) { pushAlert('warn', msg); }
-    function alertErr(msg) { pushAlert('error', msg); }
-    function pushAlert(type, msg) {
-        const box = document.getElementById('alertContainer');
-        const el = document.createElement('div');
-        el.className = `alert ${type} mt-10`;
-        el.innerHTML = `<i class="fa fa-info-circle"></i> ${msg}`;
-        box.prepend(el);
-        setTimeout(() => el.remove(), 5000);
     }
 
     function setConnState(text, spinning=false) {
@@ -1257,13 +1308,18 @@
     // ===== Xterm tabs =====
     function createNewTab(name){
         const tabId = 'tab-' + Date.now();
+        const terminalSettings = loadTerminalSettings();
+        // 创建终端时不设置 theme
         const term = new Terminal({
             cursorBlink: true,
-            fontSize: 14,
-            theme: { background: '#0b0f1e' }, // 保持终端背景颜色不变
+            fontSize: terminalSettings.fontSize,
         });
         const fitAddon = new FitAddon.FitAddon();
         term.loadAddon(fitAddon);
+
+        // --- 新增：根据当前全局主题立即设置终端主题 ---
+        const isLight = document.body.classList.contains('theme-light');
+        term.options.theme = isLight ? TERMINAL_THEMES.light : TERMINAL_THEMES.dark; // 应用初始主题
 
         // Tabs UI
         const tabEl = document.createElement('div');
@@ -1910,6 +1966,49 @@
         }
     }
 
+    // --- 在脚本开头或合适位置定义默认设置 ---
+    const DEFAULT_TERMINAL_SETTINGS = {
+        fontFamily: 'monospace',
+        fontSize: 14
+    };
+
+    // --- 添加保存和加载设置的函数 ---
+    function saveTerminalSettings() {
+        const settings = {
+            fontFamily: document.getElementById('terminalFontFamily').value,
+            fontSize: parseInt(document.getElementById('terminalFontSize').value, 10)
+        };
+        localStorage.setItem('webssh-terminal-settings', JSON.stringify(settings));
+    }
+
+    function loadTerminalSettings() {
+        const savedSettings = localStorage.getItem('webssh-terminal-settings');
+        let settings;
+        if (savedSettings) {
+            try {
+                settings = JSON.parse(savedSettings);
+            } catch (e) {
+                console.error("Failed to parse saved terminal settings:", e);
+                settings = DEFAULT_TERMINAL_SETTINGS;
+            }
+        } else {
+            settings = DEFAULT_TERMINAL_SETTINGS;
+        }
+        document.getElementById('terminalFontFamily').value = settings.fontFamily;
+        document.getElementById('terminalFontSize').value = settings.fontSize;
+        return settings;
+    }
+
+    // --- 添加应用设置的函数 ---
+    function applyTerminalSettings() {
+        saveTerminalSettings(); // 保存到 localStorage
+        alertOk('设置已保存。新终端将使用新设置。');
+        // 注意：要将设置应用到已存在的终端，需要更新所有 tabs 中的 term.options
+        // 这是一个更复杂的操作，通常需要重新创建终端或逐一更新。
+        // 这里仅保存设置，供后续新建的终端使用。
+        // 如果需要更新现有终端，可以考虑添加一个 "重新加载所有终端" 的功能。
+    }
+
     // 显示新建目录模态框
     function showCreateDirModal() {
         if (!currentFileManagerServer) {
@@ -1972,6 +2071,7 @@
         }
         fetchServers();
         refreshFilesPage();
+        loadTerminalSettings();
         // 创建默认终端标签
         setTimeout(createNewTab, 500);
     });
