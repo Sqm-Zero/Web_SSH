@@ -370,7 +370,7 @@
 
         .file-card:hover {
             background: #1e293b;
-            transform: translateY(-2px);
+            /*transform: translateY(-2px);*/
             box-shadow: 0 4px 8px rgba(0,0,0,0.2);
         }
 
@@ -554,6 +554,98 @@
             background: #64748b;
         }
 
+        /* 自定义背景样式 */
+        body.custom-bg-full {
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed; /* 固定背景 */
+        }
+        body.custom-bg-full .shell {
+            /* 可选：为主要内容添加半透明背景以提高可读性 */
+            /* background-color: rgba(15, 23, 42, 0.8); */
+        }
+
+        .sidebar.custom-bg-sidebar {
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            /* 可选：调整侧边栏背景的亮度/对比度 */
+            /* filter: brightness(0.8); */
+        }
+        /* 确保侧边栏内容仍然可见 */
+        .sidebar.custom-bg-sidebar .brand,
+        .sidebar.custom-bg-sidebar .side-actions,
+        .sidebar.custom-bg-sidebar .nav,
+        .sidebar.custom-bg-sidebar .sidebar-footer {
+            background-color: rgba(11, 18, 32, 0.7); /* 半透明背景 */
+            /* 或者使用 backdrop-filter (如果浏览器支持) */
+            /* backdrop-filter: blur(2px); background-color: rgba(11, 18, 32, 0.5); */
+        }
+        .theme-light .sidebar.custom-bg-sidebar .brand,
+        .theme-light .sidebar.custom-bg-sidebar .side-actions,
+        .theme-light .sidebar.custom-bg-sidebar .nav,
+        .theme-light .sidebar.custom-bg-sidebar .sidebar-footer {
+            background-color: rgba(248, 250, 252, 0.7);
+        }
+
+        /* 文件多选样式 */
+        .file-card.selected {
+            outline: 2px solid var(--acc); /* 使用主题色高亮选中项 */
+            outline-offset: -2px;
+            position: relative;
+        }
+        .file-card.selected::after {
+            content: "";
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 16px;
+            height: 16px;
+            background-color: var(--acc);
+            border-radius: 50%;
+            border: 2px solid var(--card);
+            box-sizing: border-box;
+        }
+        /* 多选工具栏 */
+        #fileMultiSelectToolbar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(30, 41, 59, 0.5);
+            flex-wrap: wrap; /* 允许按钮换行 */
+        }
+        .theme-light #fileMultiSelectToolbar {
+            background: rgba(226, 232, 240, 0.5);
+        }
+        #fileMultiSelectToolbar #selectedCount {
+            flex-grow: 1; /* 让计数信息占据剩余空间 */
+            min-width: 0; /* 允许文本溢出 */
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        /* 文件信息模态框 (如果需要更复杂的显示) */
+        #fileInfoModal .modal-content {
+            max-width: 500px;
+            height: 50%;
+        }
+        .file-info-grid {
+            display: grid;
+            grid-template-columns: max-content 1fr;
+            gap: 8px 16px;
+            align-items: start;
+        }
+        .file-info-grid .label {
+            font-weight: bold;
+            text-align: right;
+        }
+        .file-info-grid .value {
+            word-break: break-all;
+        }
+
         /* 全屏终端模式 */
         .fullscreen-terminal {
             position: fixed;
@@ -562,7 +654,7 @@
             width: 100vw;
             height: 100vh;
             z-index: 1000;
-            background: #000;
+            /*background: #000;*/
         }
 
         .fullscreen-terminal .card {
@@ -831,6 +923,24 @@
             <div style="padding:16px;">
                 <div class="card"><div class="card-hd"><b>设置</b></div><div class="card-bd">
                     <div class="form-row">
+                        <label for="backgroundType">背景类型</label>
+                        <select id="backgroundType">
+                            <option value="default">默认</option>
+                            <option value="sidebar">侧边栏背景</option>
+                            <option value="full">全页面背景</option>
+                        </select>
+                    </div>
+                    <div class="form-row" id="backgroundImageRow" style="display: none;">
+                        <label for="backgroundImage">背景图片</label>
+                        <input type="file" id="backgroundImage" accept="image/*" />
+                        <div class="mt-10">
+                            <button class="btn ghost" onclick="clearBackgroundImage()">清除背景图片</button>
+                        </div>
+                    </div>
+                    <div class="mt-16 text-right">
+                        <button class="btn primary" onclick="applySettings()">应用设置</button>
+                    </div>
+                    <div class="form-row">
                         <label for="terminalFontFamily">字体</label>
                         <select id="terminalFontFamily">
                             <option value="monospace">默认等宽字体</option>
@@ -859,6 +969,12 @@
             <b>文件管理器 - <span id="fileManagerServerName"></span></b>
             <button class="btn ghost" onclick="closeFileManager()"><i class="fa fa-times"></i></button>
         </div>
+        <div id="fileMultiSelectToolbar" class="toolbar hidden" style="padding: 10px; border-bottom: 1px solid var(--border); background: rgba(30, 41, 59, 0.5);">
+            <span id="selectedCount">已选择 0 项</span>
+            <button class="btn danger" onclick="bulkDeleteSelectedFiles()"><i class="fa fa-trash"></i> 批量删除</button>
+            <button class="btn primary" onclick="bulkDownloadSelectedFiles()"><i class="fa fa-download"></i> 批量下载</button>
+            <button class="btn ghost" onclick="clearFileSelection()"><i class="fa fa-times"></i> 取消选择</button>
+        </div>
         <div class="file-path">
             <button class="btn ghost" onclick="goToParentDirectory()"><i class="fa fa-arrow-up"></i> 上级</button>
             <!-- 修改路径显示区域 -->
@@ -886,7 +1002,36 @@
         </div>
     </div>
 </div>
+<!-- 文件信息模态框 -->
+<div id="fileInfoModal" class="modal hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <b id="fileInfoTitle">文件属性</b>
+            <button class="btn ghost" onclick="closeFileInfoModal()"><i class="fa fa-times"></i></button>
+        </div>
+        <div class="modal-body" style="padding: 20px; overflow-y: auto;">
+            <div class="file-info-grid">
+                <span class="label">名称:</span>
+                <span id="infoFileName" class="value">-</span>
 
+                <span class="label">类型:</span>
+                <span id="infoFileType" class="value">-</span>
+
+                <span class="label">大小:</span>
+                <span id="infoFileSize" class="value">-</span>
+
+                <span class="label">修改时间:</span>
+                <span id="infoFileModified" class="value">-</span>
+
+                <span class="label">权限:</span>
+                <span id="infoFilePermissions" class="value">-</span>
+            </div>
+        </div>
+        <div class="modal-footer" style="padding: 16px; border-top: 1px solid var(--border); text-align: right;">
+            <button class="btn primary" onclick="closeFileInfoModal()">关闭</button>
+        </div>
+    </div>
+</div>
 <!-- 上传文件模态框 -->
 <div id="uploadModal" class="modal hidden">
     <div class="modal-content">
@@ -932,6 +1077,7 @@
     <div class="menu-item" onclick="downloadSelectedFile()"><i class="fa fa-download"></i> 下载</div>
     <div class="menu-item" onclick="deleteSelectedFile()"><i class="fa fa-trash"></i> 删除</div>
     <div class="menu-item" onclick="renameSelectedFile()"><i class="fa fa-edit"></i> 重命名</div>
+    <div class="menu-item" onclick="showFileInfo()"><i class="fa fa-info-circle"></i> 属性</div>
 </div>
 
 <script>
@@ -945,6 +1091,8 @@
 
     const tabs = []; // {id, name, term, fitAddon}
     let activeTab = null;
+    let selectedFiles = new Set(); // 用于存储多选的文件名
+    let lastSelectedFile = null; // 用于 Shift 选择
 
     // ===== UI helpers =====
     function switchPage(page, el) {
@@ -1030,6 +1178,69 @@
                 tab.term.options.theme = newTheme;
             }
         });
+        applyBackgroundSettings();
+    }
+
+    function applyBackgroundSettings() {
+        const bgType = localStorage.getItem('webssh-bg-type') || 'default';
+        const bgImage = localStorage.getItem('webssh-bg-image'); // 存储的是 Data URL
+
+        const body = document.body;
+        const sidebar = document.querySelector('.sidebar');
+
+        // 移除所有自定义背景类
+        body.classList.remove('custom-bg-full');
+        sidebar.classList.remove('custom-bg-sidebar');
+        body.style.backgroundImage = '';
+        sidebar.style.backgroundImage = '';
+
+        if (bgType !== 'default' && bgImage) {
+            if (bgType === 'full') {
+                body.classList.add('custom-bg-full');
+                body.style.backgroundImage = `url(${bgImage})`;
+            } else if (bgType === 'sidebar') {
+                sidebar.classList.add('custom-bg-sidebar');
+                sidebar.style.backgroundImage = `url(${bgImage})`;
+            }
+        }
+    }
+
+    // --- 新增：清除背景图片 ---
+    function clearBackgroundImage() {
+        localStorage.removeItem('webssh-bg-image');
+        localStorage.setItem('webssh-bg-type', 'default');
+        document.getElementById('backgroundType').value = 'default';
+        document.getElementById('backgroundImageRow').style.display = 'none';
+        applyBackgroundSettings();
+        alertOk('背景图片已清除');
+    }
+
+    // --- 新增：应用所有设置 ---
+    function applySettings() {
+        // 应用主题 (已在 toggleTheme 中处理，这里调用是为了确保逻辑一致)
+        // const isLight = document.body.classList.contains('theme-light');
+        // localStorage.setItem('webssh-theme', isLight ? 'light' : 'dark');
+
+        // 应用背景设置
+        const bgType = document.getElementById('backgroundType').value;
+        localStorage.setItem('webssh-bg-type', bgType);
+
+        const fileInput = document.getElementById('backgroundImage');
+        const file = fileInput.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const dataUrl = e.target.result;
+                localStorage.setItem('webssh-bg-image', dataUrl);
+                applyBackgroundSettings();
+                alertOk('设置已应用');
+            };
+            reader.readAsDataURL(file);
+        } else {
+            // 如果没有选择新文件，仅应用类型设置
+            applyBackgroundSettings();
+            alertOk('设置已应用');
+        }
     }
 
     function setConnState(text, spinning=false) {
@@ -1442,11 +1653,6 @@
         }, 100);
     }
 
-    // 重写适配窗口函数为切换全屏
-    function fitActiveTerminal() {
-        toggleFullscreen();
-    }
-
     function clearActive(){
         const t = getActive();
         if (!t) return;
@@ -1554,63 +1760,66 @@
             alertErr('未选择服务器');
             return;
         }
-
         const fileList = document.getElementById('fileList');
         fileList.innerHTML = '<div class="alert info">正在加载文件列表...</div>';
 
-        // 更新路径状态和显示
         currentPath = path;
         updatePathDisplay(currentPath);
+
+        // 清除之前的多选状态
+        selectedFiles.clear();
+        lastSelectedFile = null;
+        updateMultiSelectToolbar();
 
         try {
             const response = await fetch(`/api/servers/${currentFileManagerServer.id}/files?path=${encodeURIComponent(path)}`);
             const result = await response.json();
-
             if (!result.success) {
                 fileList.innerHTML = `<div class="alert error">加载失败: ${result.message}</div>`;
                 return;
             }
-
             const files = result.data || [];
-            displayFilesOptimized(files); // 使用优化的显示函数
+            displayFilesOptimized(files);
         } catch (error) {
             fileList.innerHTML = `<div class="alert error">请求失败: ${error.message}</div>`;
         }
     }
 
-    // 优化的文件列表显示函数 (使用事件委托)
+    // 文件列表显示函数，支持多选
     function displayFilesOptimized(files) {
         const fileList = document.getElementById('fileList');
-        fileList.innerHTML = ''; // 清空现有内容
-
+        fileList.innerHTML = '';
         if (files.length === 0) {
             fileList.innerHTML = '<div class="alert info">此目录为空</div>';
+            updateMultiSelectToolbar(); // 确保工具栏状态正确
             return;
         }
 
-        // 使用 DocumentFragment 提高渲染性能
         const fragment = document.createDocumentFragment();
-
         files.forEach(file => {
             const card = document.createElement('div');
             card.className = `file-card ${file.isDirectory ? 'directory' : 'file'}`;
             card.dataset.name = file.name;
             card.dataset.isDirectory = file.isDirectory;
+            // 添加数据属性存储详细信息 (如果后端提供了)
+            if (file.size !== undefined) card.dataset.size = file.size;
+            if (file.lastModified) card.dataset.lastModified = file.lastModified;
+            if (file.permissions) card.dataset.permissions = file.permissions;
 
-            // 使用优化后的图标获取函数
             const iconClass = getFileIconClass(file.name, file.isDirectory);
-
             card.innerHTML = `
-                <div class="icon"><i class="${iconClass}"></i></div>
-                <div class="name">${file.name}</div>
-            `;
+            <div class="icon"><i class="${iconClass}"></i></div>
+            <div class="name">${file.name}</div>
+        `;
             fragment.appendChild(card);
         });
-
         fileList.appendChild(fragment);
 
-        // 使用事件委托处理点击和右键菜单
-        fileList.removeEventListener('click', handleFileClick); // 先移除旧监听器避免重复
+        // 更新选中状态 (如果之前有选中)
+        updateFileCardSelectionUI();
+
+        // 使用事件委托处理点击、右键菜单和多选
+        fileList.removeEventListener('click', handleFileClick);
         fileList.removeEventListener('contextmenu', handleFileContextMenu);
         fileList.addEventListener('click', handleFileClick);
         fileList.addEventListener('contextmenu', handleFileContextMenu);
@@ -1618,55 +1827,312 @@
 
     // 文件点击事件处理函数 (事件委托)
     function handleFileClick(e) {
-        // 隐藏上下文菜单
         document.getElementById('fileContextMenu').classList.remove('show');
 
-        // 查找被点击的文件卡片
         let targetCard = e.target.closest('.file-card');
-        if (!targetCard) return; // 点击的不是文件卡片
+        if (!targetCard) return;
 
-        const isDirectory = targetCard.dataset.isDirectory === 'true';
         const filename = targetCard.dataset.name;
+        const isCtrlPressed = e.ctrlKey || e.metaKey; // 兼容 Mac
+        const isShiftPressed = e.shiftKey;
 
-        if (isDirectory) {
-            // 如果是目录，则进入
-            const newPath = currentPath === '/' ? `/${filename}` : `${currentPath}/${filename}`;
-            listFiles(newPath);
+        if (isShiftPressed && lastSelectedFile) {
+            // Shift 选择: 选择从 lastSelectedFile 到当前文件的范围
+            performShiftSelect(filename);
+        } else if (isCtrlPressed) {
+            // Ctrl 选择: 切换单个文件选中状态
+            if (selectedFiles.has(filename)) {
+                selectedFiles.delete(filename);
+            } else {
+                selectedFiles.add(filename);
+            }
+            lastSelectedFile = filename;
         } else {
-            // 如果是文件，可以选择高亮显示或不做特殊处理
-            // 这里我们简单记录选中文件
-            selectedFile = { name: filename, isDirectory: isDirectory };
-            // 移除其他卡片的选中状态 (如果需要视觉反馈)
-            document.querySelectorAll('.file-card').forEach(c => c.classList.remove('selected'));
-            // 添加选中状态到当前卡片 (如果需要视觉反馈)
-            targetCard.classList.add('selected');
+            // 普通点击: 清除之前选择，只选中当前文件
+            selectedFiles.clear();
+            selectedFiles.add(filename);
+            lastSelectedFile = filename;
+        }
+
+        updateFileCardSelectionUI();
+        updateMultiSelectToolbar();
+    }
+
+    // 执行 Shift 选择
+    function performShiftSelect(currentFilename) {
+        const allCards = Array.from(document.querySelectorAll('#fileList .file-card'));
+        const allNames = allCards.map(card => card.dataset.name);
+        const lastIndex = allNames.indexOf(lastSelectedFile);
+        const currentIndex = allNames.indexOf(currentFilename);
+
+        if (lastIndex === -1 || currentIndex === -1) return; // 安全检查
+
+        const [start, end] = lastIndex < currentIndex ? [lastIndex, currentIndex] : [currentIndex, lastIndex];
+
+        selectedFiles.clear();
+        for (let i = start; i <= end; i++) {
+            selectedFiles.add(allNames[i]);
+        }
+    }
+
+    // 更新文件卡片的 UI 选中状态
+    function updateFileCardSelectionUI() {
+        document.querySelectorAll('#fileList .file-card').forEach(card => {
+            const name = card.dataset.name;
+            if (selectedFiles.has(name)) {
+                card.classList.add('selected');
+            } else {
+                card.classList.remove('selected');
+            }
+        });
+    }
+
+    // 更新多选工具栏
+    function updateMultiSelectToolbar() {
+        const toolbar = document.getElementById('fileMultiSelectToolbar');
+        const countSpan = document.getElementById('selectedCount');
+        const count = selectedFiles.size;
+
+        if (count > 0) {
+            toolbar.classList.remove('hidden');
+            countSpan.textContent = `已选择 ${count} 项`;
+        } else {
+            toolbar.classList.add('hidden');
+            countSpan.textContent = '已选择 0 项';
+        }
+    }
+
+    // 清除文件选择
+    function clearFileSelection() {
+        selectedFiles.clear();
+        lastSelectedFile = null;
+        updateFileCardSelectionUI();
+        updateMultiSelectToolbar();
+        document.getElementById('fileContextMenu').classList.remove('show');
+    }
+
+    // 批量删除
+    async function bulkDeleteSelectedFiles() {
+        if (selectedFiles.size === 0 || !currentFileManagerServer) {
+            alertWarn('请先选择文件或目录');
+            return;
+        }
+
+        const count = selectedFiles.size;
+        if (!confirm(`确定要删除选中的 ${count} 项吗?`)) {
+            return;
+        }
+
+        let successCount = 0;
+        let failCount = 0;
+        const errors = [];
+
+        // 创建一个包含所有删除 Promise 的数组
+        const deletePromises = Array.from(selectedFiles).map(filename => {
+            const fullPath = currentPath === '/' ? `/${filename}` : `${currentPath}/${filename}`;
+            const isDirectory = document.querySelector(`.file-card[data-name="${CSS.escape(filename)}"]`).dataset.isDirectory === 'true';
+
+            return fetch(`/api/servers/${currentFileManagerServer.id}/file`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: fullPath, isDirectory: isDirectory })
+            })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success) {
+                        successCount++;
+                    } else {
+                        failCount++;
+                        errors.push(`${filename}: ${result.message}`);
+                    }
+                })
+                .catch(error => {
+                    failCount++;
+                    errors.push(`${filename}: ${error.message}`);
+                });
+        });
+
+        try {
+            // 等待所有删除操作完成
+            await Promise.all(deletePromises);
+
+            if (failCount === 0) {
+                alertOk(`成功删除 ${successCount} 项`);
+            } else {
+                const errorMsg = `删除完成。成功: ${successCount}, 失败: ${failCount}。\n部分错误:\n${errors.slice(0, 3).join('\n')}${errors.length > 3 ? '\n...' : ''}`;
+                alertErr(errorMsg);
+            }
+
+            clearFileSelection(); // 清除选择
+            listFiles(currentPath); // 刷新列表
+
+        } catch (error) {
+            alertErr('批量删除过程中发生未知错误: ' + error.message);
+        }
+    }
+
+    // 批量下载 (简单实现：逐个触发下载)
+    function bulkDownloadSelectedFiles() {
+        if (selectedFiles.size === 0 || !currentFileManagerServer) {
+            alertWarn('请先选择文件');
+            return;
+        }
+
+        let fileCount = 0;
+        selectedFiles.forEach(filename => {
+            // 检查是否为文件 (简单检查)
+            const card = document.querySelector(`.file-card[data-name="${CSS.escape(filename)}"]`);
+            if (card && card.dataset.isDirectory !== 'true') {
+                fileCount++;
+                const fullPath = currentPath === '/' ? `/${filename}` : `${currentPath}/${filename}`;
+                const url = `/api/servers/${currentFileManagerServer.id}/download?path=${encodeURIComponent(fullPath)}`;
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        });
+
+        if (fileCount === 0) {
+            alertWarn('请选择至少一个文件进行下载');
+        } else {
+            alertOk(`已触发下载 ${fileCount} 个文件。浏览器可能会阻止多个下载弹窗，请允许。`);
         }
     }
 
     // 文件右键菜单事件处理函数 (事件委托)
     function handleFileContextMenu(e) {
-        e.preventDefault(); // 阻止默认右键菜单
+        e.preventDefault();
 
-        // 查找被右键点击的文件卡片
         let targetCard = e.target.closest('.file-card');
-        if (!targetCard) return; // 右键点击的不是文件卡片
+        if (!targetCard) return;
 
-        const isDirectory = targetCard.dataset.isDirectory === 'true';
         const filename = targetCard.dataset.name;
+        // 如果右键点击的文件未被选中，则清空选择并选中它
+        if (!selectedFiles.has(filename)) {
+            selectedFiles.clear();
+            selectedFiles.add(filename);
+            lastSelectedFile = filename;
+            updateFileCardSelectionUI();
+            updateMultiSelectToolbar();
+        }
+        // 如果已经选中（包括多选），则保持当前选择
 
-        // 记录当前选中的文件
-        selectedFile = { name: filename, isDirectory: isDirectory };
+        // 更新 selectedFile 为当前右键点击的文件，以便上下文菜单操作针对它
+        selectedFile = {
+            name: filename,
+            isDirectory: targetCard.dataset.isDirectory === 'true',
+            // 可以从 dataset 获取其他信息
+            size: targetCard.dataset.size,
+            lastModified: targetCard.dataset.lastModified,
+            permissions: targetCard.dataset.permissions
+        };
 
-        // 移除其他卡片的选中状态
-        document.querySelectorAll('.file-card').forEach(c => c.classList.remove('selected'));
-        // 添加选中状态到当前卡片
-        targetCard.classList.add('selected');
+        // 高亮当前右键点击的卡片 (可选)
+        document.querySelectorAll('.file-card').forEach(c => c.classList.remove('context-menu-target'));
+        targetCard.classList.add('context-menu-target'); // 需要添加对应 CSS
 
-        // 显示自定义上下文菜单
         const menu = document.getElementById('fileContextMenu');
         menu.style.top = `${e.clientY}px`;
         menu.style.left = `${e.clientX}px`;
         menu.classList.add('show');
+    }
+
+    // 显示文件信息 (简单版本，使用 alert)
+    function showFileInfo() {
+        // 隐藏上下文菜单
+        document.getElementById('fileContextMenu').classList.remove('show');
+
+        if (!selectedFile) {
+            alertWarn('请先选择一个文件或目录');
+            console.warn("showFileInfo called, but selectedFile is null/undefined.");
+            return;
+        }
+
+        const modal = document.getElementById('fileInfoModal');
+        const titleElement = document.getElementById('fileInfoTitle');
+        const nameElement = document.getElementById('infoFileName');
+        const typeElement = document.getElementById('infoFileType');
+        const sizeElement = document.getElementById('infoFileSize');
+        const modifiedElement = document.getElementById('infoFileModified');
+        const permissionsElement = document.getElementById('infoFilePermissions');
+
+        // 基本的安全检查
+        if (!modal || !titleElement || !nameElement || !typeElement || !sizeElement || !modifiedElement || !permissionsElement) {
+            alertErr('文件信息模态框元素未找到');
+            console.error("File info modal elements not found in DOM.");
+            return;
+        }
+
+        // 设置模态框标题
+        titleElement.textContent = `文件属性: ${selectedFile.name}`;
+
+        // 填充模态框内容
+        nameElement.textContent = selectedFile.name || '-';
+
+        typeElement.textContent = selectedFile.isDirectory ? '目录' : '文件';
+
+        if (selectedFile.size !== undefined && selectedFile.size !== null) {
+            sizeElement.textContent = formatFileSize(selectedFile.size);
+        } else {
+            sizeElement.textContent = '未知';
+        }
+
+        // --- 修复时间戳显示 ---
+        if (selectedFile.lastModified !== undefined && selectedFile.lastModified !== null) {
+            let date;
+            // 尝试处理不同格式的时间戳
+            if (typeof selectedFile.lastModified === 'number') {
+                // 假设是毫秒时间戳
+                date = new Date(selectedFile.lastModified);
+            } else if (typeof selectedFile.lastModified === 'string') {
+                // 尝试解析字符串时间戳
+                const num = Number(selectedFile.lastModified);
+                if (!isNaN(num)) {
+                    // 如果字符串能转成数字，假设是毫秒时间戳
+                    date = new Date(num);
+                } else {
+                    // 否则尝试解析 ISO 字符串或其他格式
+                    date = new Date(selectedFile.lastModified);
+                }
+            } else {
+                // 其他情况，直接尝试用 Date 构造函数
+                date = new Date(selectedFile.lastModified);
+            }
+
+            if (date && !isNaN(date.getTime())) {
+                modifiedElement.textContent = date.toLocaleString(); // 使用本地化格式
+            } else {
+                modifiedElement.textContent = `格式无效 (${selectedFile.lastModified})`;
+            }
+        } else {
+            modifiedElement.textContent = '未知';
+        }
+        // --- /修复时间戳显示 ---
+
+        permissionsElement.textContent = selectedFile.permissions || '未知';
+
+        // 显示模态框
+        modal.classList.remove('hidden');
+    }
+
+    // 关闭文件信息模态框
+    function closeFileInfoModal() {
+        const modal = document.getElementById('fileInfoModal');
+        if (modal) {
+            modal.classList.add('hidden');
+        }
+    }
+
+    // 格式化文件大小
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
     // 全局点击事件监听器，用于隐藏上下文菜单和处理路径输入
@@ -1783,6 +2249,9 @@
         document.getElementById('fileManagerModal').classList.add('hidden');
         currentFileManagerServer = null;
         selectedFile = null;
+        selectedFiles.clear(); // 清除多选
+        lastSelectedFile = null;
+        updateMultiSelectToolbar(); // 隐藏工具栏
         document.getElementById('fileContextMenu').classList.remove('show');
     }
 
@@ -2069,11 +2538,54 @@
             document.body.classList.add('theme-light');
             document.querySelector('.side-actions .btn.ghost i').className = 'fa fa-sun';
         }
+        // 恢复背景设置
+        const savedBgType = localStorage.getItem('webssh-bg-type') || 'default';
+        document.getElementById('backgroundType').value = savedBgType;
+        if (savedBgType !== 'default') {
+            document.getElementById('backgroundImageRow').style.display = 'grid';
+        }
+        applyBackgroundSettings(); // 应用背景
         fetchServers();
         refreshFilesPage();
         loadTerminalSettings();
         // 创建默认终端标签
         setTimeout(createNewTab, 500);
+
+        // 为路径显示区域添加点击事件以激活输入框
+        document.getElementById('currentPathDisplay').addEventListener('click', activatePathInput);
+
+        // --- 新增：为文件列表容器添加键盘事件监听 (用于 Ctrl+A 全选等) ---
+        const fileGridContainer = document.getElementById('fileGridContainer');
+        if (fileGridContainer) {
+            fileGridContainer.addEventListener('keydown', function(e) {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+                    e.preventDefault();
+                    // 全选
+                    selectedFiles.clear();
+                    document.querySelectorAll('#fileList .file-card').forEach(card => {
+                        selectedFiles.add(card.dataset.name);
+                    });
+                    if (selectedFiles.size > 0) {
+                        // 设置 lastSelectedFile 为最后一个选中的
+                        lastSelectedFile = Array.from(selectedFiles)[selectedFiles.size - 1];
+                    }
+                    updateFileCardSelectionUI();
+                    updateMultiSelectToolbar();
+                }
+            });
+            // 确保容器可以获取焦点
+            fileGridContainer.setAttribute('tabindex', '0');
+        }
+    });
+
+    // 背景类型选择变化事件 ---
+    document.getElementById('backgroundType').addEventListener('change', function() {
+        const row = document.getElementById('backgroundImageRow');
+        if (this.value !== 'default') {
+            row.style.display = 'grid';
+        } else {
+            row.style.display = 'none';
+        }
     });
 
     // ESC键退出全屏
