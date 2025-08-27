@@ -72,6 +72,20 @@
         .xterm { height: 100%; }
         .xterm-viewport { overflow-y: auto !important; }
         .xterm-screen { height: auto !important; }
+        .btn.secondary {
+            background-color: var(--card); /* 或者一个中性色 */
+            color: var(--fg);
+            border: 1px solid var(--border);
+        }
+        .btn.secondary:hover {
+            background-color: var(--hover);
+        }
+        .theme-light .btn.secondary {
+            background-color: #e2e8f0; /* 亮色主题下的中性背景 */
+        }
+        .theme-light .btn.secondary:hover {
+            background-color: #cbd5e1;
+        }
         /* Layout */
         .shell {
             display: grid;
@@ -830,9 +844,9 @@
                     <div class="card-hd">
                         <div style="display:flex; align-items:center; gap:8px;"><i class="fa fa-plug"></i><b>SSH 连接面板</b></div>
                         <div class="toolbar">
-                            <button class="btn primary" onclick="connectSSH()"><i class="fa fa-plug"></i> 连接</button>
+<!--                            <button class="btn primary" onclick="connectSSH()"><i class="fa fa-plug"></i> 连接</button>-->
                             <button class="btn green" onclick="testConnection()" id="testBtn"><i class="fa fa-vial"></i> 测试</button>
-                            <button class="btn danger" onclick="disconnectSSH()" id="disconnectBtn" disabled><i class="fa fa-xmark"></i> 断开</button>
+<!--                            <button class="btn danger" onclick="disconnectSSH()" id="disconnectBtn" disabled><i class="fa fa-xmark"></i> 断开</button>-->
                         </div>
                     </div>
                     <div class="card-bd">
@@ -850,10 +864,17 @@
                                 <div class="form-row"><label>用户名</label><input id="username" placeholder="root"/></div>
                                 <div class="form-row"><label>密码</label><input id="password" type="password" placeholder="••••••"/></div>
                             </div>
-                            <div class="mt-10">
-                                <button class="btn ghost" id="saveServerBtn" onclick="toggleSaveServer()">
-                                    <i class="fa fa-bookmark"></i> 保存此服务器配置
+                            <div class="mt-10" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                <!-- 连接按钮 -->
+                                <button class="btn primary" onclick="connectSSH()"><i class="fa fa-plug"></i> 连接</button>
+                                <!-- 显式的保存到服务器按钮 -->
+                                <button class="btn secondary" id="saveToServerBtn" onclick="manuallySaveToServer()">
+                                    <i class="fa fa-cloud-arrow-up"></i> 保存到服务器
                                 </button>
+                                <!-- (可选) 保存到本地按钮 - 如果需要手动触发本地保存 -->
+                                <!-- <button class="btn ghost" onclick="manuallySaveToLocal()"><i class="fa fa-bookmark"></i> 保存到本地</button> -->
+                                <!-- 断开按钮 -->
+                                <button class="btn danger" id="disconnectBtn" onclick="disconnectSSH()" disabled><i class="fa fa-unlink"></i> 断开</button>
                             </div>
 <!--                            <div id="alertContainer" class="mt-16"></div>-->
                         </div>
@@ -1217,10 +1238,6 @@
 
     // --- 新增：应用所有设置 ---
     function applySettings() {
-        // 应用主题 (已在 toggleTheme 中处理，这里调用是为了确保逻辑一致)
-        // const isLight = document.body.classList.contains('theme-light');
-        // localStorage.setItem('webssh-theme', isLight ? 'light' : 'dark');
-
         // 应用背景设置
         const bgType = document.getElementById('backgroundType').value;
         localStorage.setItem('webssh-bg-type', bgType);
@@ -1375,61 +1392,52 @@
             stompClient.send('/app/ssh/connect', {}, JSON.stringify({ host, port, username, password }));
             document.getElementById('disconnectBtn').disabled = false;
             // 保存服务器配置（异步处理）
-            saveServerIfNeeded(host, port, username, password).then(() => {
+            /*saveServerIfNeeded(host, port, username, password).then(() => {
                 if (!activeTab) createNewTab();
-            });
+            });*/
+            saveToLocal(host, port, username, password);
+            if (!activeTab) createNewTab();
         });
-    }
-
-    // 保存服务器配置状态
-    let saveServerEnabled = false;
-    function toggleSaveServer() {
-        saveServerEnabled = !saveServerEnabled;
-        const btn = document.getElementById('saveServerBtn');
-        if (saveServerEnabled) {
-            btn.classList.remove('ghost');
-            btn.classList.add('primary');
-            btn.innerHTML = '<i class="fa fa-bookmark"></i> 已启用保存到服务器';
-        } else {
-            btn.classList.remove('primary');
-            btn.classList.add('ghost');
-            btn.innerHTML = '<i class="fa fa-bookmark"></i> 保存到服务器';
-        }
     }
 
     // 保存到本地存储
     function saveToLocal(host, port, username, password){
+        const name = document.getElementById('serverName').value.trim() || `${host}:${port}`;
         const list = JSON.parse(localStorage.getItem(KEY) || '[]');
-        const name = document.getElementById('serverName').value;
-        list.push({ host, port, username, password, name });
+        // 检查是否已存在，避免重复 (可选，提升用户体验)
+        const existingIndex = list.findIndex(s => s.host === host && s.port === port && s.username === username);
+        const serverObj = { host, port, username, password, name };
+        if (existingIndex >= 0) {
+            list[existingIndex] = serverObj; // 更新现有条目
+            alertInfo('已更新本地保存的服务器配置');
+        } else {
+            list.push(serverObj); // 新增条目
+            alertOk('已保存到本地');
+        }
         localStorage.setItem(KEY, JSON.stringify(list));
-        loadSavedServers();
-        alertOk('已保存到本地');
+        loadSavedServers(); // 更新下拉列表
     }
 
     // 保存到服务器
-    async function saveToServer(host, port, username, password) {
+    async function saveToServer(host, port, username, password) { // 可以考虑不传 password
         try {
-            const name = document.getElementById('serverName').value;
-            const serverData = {
-                name: name || `${host}:${port}`,
-                host,
-                port,
-                username,
-                password
-            };
+            const name = document.getElementById('serverName').value.trim();
+            // 注意：出于安全考虑，通常不建议将密码保存到服务器，除非有强加密措施。
+            // 这里为了兼容性保留，但强烈建议后端和前端都只保存 host/port/username/name
+            const serverData = { name: name || `${host}:${port}`, host, port, username, password };
+
             const response = await fetch('/api/servers', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(serverData)
             });
             const result = await response.json();
+
             if (result.success) {
                 alertOk('已保存到服务器');
-                // 同时也保存到本地作为备份
-                saveToLocal(host, port, username, password);
+                // 同时也更新本地列表，保持同步
+                // 注意：如果服务器返回了 ID，最好用服务器返回的完整数据更新本地
+                saveToLocal(host, port, username, ''); // 本地也保存，但密码留空或也保存（取决于策略）
                 return true;
             } else {
                 alertErr('保存到服务器失败: ' + result.message);
@@ -1437,16 +1445,21 @@
             }
         } catch (error) {
             alertErr('保存到服务器失败: ' + error.message);
-            // 出错时仍然保存到本地
-            saveToLocal(host, port, username, password);
             return false;
         }
     }
 
-    function saveServerIfNeeded(host, port, username, password){
-        if (!saveServerEnabled) return Promise.resolve();
-        // 优先保存到服务器，失败时保存到本地
-        return saveToServer(host, port, username, password);
+    // 手动保存到服务器
+    function manuallySaveToServer() {
+        const host = document.getElementById('host').value.trim();
+        const port = parseInt(document.getElementById('port').value, 10) || 22;
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value; // 通常不建议手动保存密码
+        if (!host || !username) {
+            alertWarn('请先填写主机地址和用户名');
+            return;
+        }
+        saveToServer(host, port, username, password);
     }
 
     function disconnectSSH(){
@@ -1601,7 +1614,7 @@
     }
 
     // 全屏终端功能
-    function fitActiveTerminal(){
+   /* function fitActiveTerminal(){
         const t = getActive();
         if (!t) return;
         // 如果当前是全屏模式，直接适配全屏
@@ -1620,6 +1633,10 @@
                 rows: t.term.rows
             }));
         }
+    }*/
+    // 重写适配窗口函数为切换全屏 (恢复原始功能)
+    function fitActiveTerminal() {
+        toggleFullscreen();
     }
 
     // 切换全屏模式

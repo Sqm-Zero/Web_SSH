@@ -1,10 +1,13 @@
 package com.kklsqm.webssh.controller;
 
+import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.Session;
 import com.kklsqm.webssh.domain.SshService;
 import com.kklsqm.webssh.service.SshServiceService;
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanWrapper;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,6 +21,7 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/servers")
+@Slf4j
 public class ServerController {
 
     @Resource
@@ -37,7 +41,15 @@ public class ServerController {
      */
     @PostMapping
     public ResponseEntity<Map<String, Object>> addServer(@RequestBody SshService server) {
+        log.info("添加服务器: {}", server);
         try {
+            SshService one = new LambdaQueryChainWrapper<SshService>(serverService.getBaseMapper())
+                    .eq(SshService::getHost, server.getHost())
+                    .eq(SshService::getPort, server.getPort())
+                    .one();
+            if(one != null){
+                server.setId(one.getId());
+            }
             serverService.saveOrUpdate(server);
             return ResponseEntity.ok(Map.of("success", true, "id", server.getId()));
         } catch (Exception e) {
