@@ -22,7 +22,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 功能:
+ * 功能: SSH控制台
  * 作者: 沙琪马
  * 日期: 2025/8/19 19:52
  */

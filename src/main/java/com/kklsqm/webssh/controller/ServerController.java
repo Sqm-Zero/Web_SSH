@@ -7,7 +7,6 @@ import com.kklsqm.webssh.domain.SshService;
 import com.kklsqm.webssh.service.SshServiceService;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeanWrapper;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 

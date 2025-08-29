@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 /**
- * 功能:
+ * 功能: ssh服务
  * 作者: 沙琪马
  * 日期: 2025/8/20 10:24
  */
