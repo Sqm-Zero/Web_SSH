@@ -959,3 +959,140 @@ hr {
         min-width: 0; /* 允许按钮收缩 */
     }
 }
+
+/* 仪表盘网格布局 */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* 响应式列 */
+    gap: 20px;
+    margin-top: 16px;
+}
+
+.dashboard-widget {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+    height: 100%; /* 使卡片等高 */
+}
+
+.dashboard-widget-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+.dashboard-widget-header h3 {
+    margin: 0;
+    font-size: 1.1em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* 仪表盘内容区域 (用于图表和列表) */
+.dashboard-widget-content {
+    flex: 1; /* 占据剩余空间 */
+    display: flex;
+    flex-direction: column;
+    min-height: 250px; /* 设置最小高度 */
+}
+
+/* 专门用于 ECharts 图表的容器 */
+.dashboard-chart-container {
+    flex: 1; /* 图表容器占据内容区域的所有空间 */
+    min-height: 0; /* 允许 flexbox 收缩 */
+}
+
+/* 服务状态列表 */
+.service-status-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    flex: 1; /* 列表也占据内容区域的剩余空间 */
+    overflow-y: auto; /* 如果列表项过多，允许内部滚动 */
+}
+
+.service-status-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.service-status-item:last-child {
+    border-bottom: none;
+}
+
+.service-name {
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px; /* 图标和文字间距 */
+}
+
+.service-status {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    font-weight: bold;
+}
+
+.service-status.active {
+    background-color: rgba(34, 197, 94, 0.1); /* 绿色 */
+    color: #86efac;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+}
+.theme-light .service-status.active {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: #047857;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.service-status.inactive {
+    background-color: rgba(239, 68, 68, 0.1); /* 红色 */
+    color: #fca5a5;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+.theme-light .service-status.inactive {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: #b91c1c;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.service-status.unknown {
+    background-color: rgba(156, 163, 175, 0.1); /* 灰色 */
+    color: #cbd5e1;
+    border: 1px solid rgba(156, 163, 175, 0.3);
+}
+.theme-light .service-status.unknown {
+    background-color: rgba(100, 116, 139, 0.1);
+    color: #475569;
+    border: 1px solid rgba(100, 116, 139, 0.3);
+}
+
+/* 加载和错误提示样式 */
+.dashboard-loading, .dashboard-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    text-align: center;
+    padding: 20px;
+}
+
+.dashboard-loading i, .dashboard-error i {
+    font-size: 2em;
+    margin-bottom: 10px;
+}
+.dashboard-error i {
+    color: var(--error); /* 使用错误颜色 */
+}

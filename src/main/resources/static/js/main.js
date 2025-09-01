@@ -15,16 +15,25 @@ let lastSelectedFile = null; // 用于 Shift 选择
 function switchPage(page, el) {
     document.querySelectorAll('.nav .item').forEach(n => n.classList.remove('active'));
     if (el) el.classList.add('active');
-    ['ssh','files','settings'].forEach(p => {
+    ['ssh','dashboard','files','settings'].forEach(p => { // 确保 'dashboard' 在数组中
         const sec = document.getElementById('page-'+p);
         if (!sec) return;
-        if (p === page) { sec.classList.remove('hidden'); } else { sec.classList.add('hidden'); }
+        if (p === page) {
+            sec.classList.remove('hidden');
+            // 如果切换到仪表盘页面，刷新服务器列表
+            if (p === 'dashboard') {
+                // 确保 populateDashboardServerSelect 在 DOM 加载后可用
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', populateDashboardServerSelect);
+                } else {
+                    populateDashboardServerSelect();
+                }
+            }
+        } else {
+            sec.classList.add('hidden');
+        }
     });
-
-    // 如果切换到文件页面，刷新服务器列表
-    if (page === 'files') {
-        refreshFilesPage();
-    }
+    // 移除或注释掉旧的 if (page === 'files') {...} 逻辑
 }
 
 const TERMINAL_THEMES = {
@@ -1441,6 +1450,335 @@ async function createDirectory() {
     } catch (error) {
         alertErr('请求失败: ' + error.message);
     }
+}
+
+// ===== 仪表盘功能 (Dashboard Functions) =====
+
+// 仪表盘状态
+let currentDashboardServerId = null;
+
+// 修改 switchPage 函数以支持仪表盘
+// (找到您现有的 switchPage 函数并替换或修改它)
+/*
+function switchPage(page, el) {
+    document.querySelectorAll('.nav .item').forEach(n => n.classList.remove('active'));
+    if (el) el.classList.add('active');
+    ['ssh','dashboard','files','settings'].forEach(p => { // 确保 'dashboard' 在数组中
+        const sec = document.getElementById('page-'+p);
+        if (!sec) return;
+        if (p === page) {
+            sec.classList.remove('hidden');
+            // 如果切换到仪表盘页面，刷新服务器列表
+            if (p === 'dashboard') {
+                 // 确保 populateDashboardServerSelect 在 DOM 加载后可用
+                 if (document.readyState === 'loading') {
+                     document.addEventListener('DOMContentLoaded', populateDashboardServerSelect);
+                 } else {
+                     populateDashboardServerSelect();
+                 }
+            }
+        } else {
+            sec.classList.add('hidden');
+        }
+    });
+    // 移除或注释掉旧的 if (page === 'files') {...} 逻辑
+}
+*/
+
+// 如果您不想修改原始的 switchPage，可以添加一个专门用于仪表盘的函数
+/*function switchToDashboard(el) {
+    switchPage('dashboard', el);
+    // 确保 populateDashboardServerSelect 在 DOM 加载后可用
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', populateDashboardServerSelect);
+    } else {
+        populateDashboardServerSelect();
+    }
+}*/
+
+// 填充仪表盘服务器选择下拉框
+async function populateDashboardServerSelect() {
+    const selectElement = document.getElementById('dashboardServerSelect');
+    if (!selectElement) {
+        console.warn("Dashboard server select element not found.");
+        return; // 如果页面未加载或元素不存在，则退出
+    }
+    const currentSelection = selectElement.value;
+    selectElement.innerHTML = '<option value="">加载中...</option>';
+
+    try {
+        const servers = await fetchServers(); // 使用已有的函数获取服务器列表
+        selectElement.innerHTML = '<option value="">选择服务器...</option>';
+        servers.forEach(server => {
+            const option = document.createElement('option');
+            option.value = server.id;
+            // 检查 server.name 是否为 null 或空字符串
+            option.textContent = server.name ? server.name : `${server.host}:${server.port}`;
+            selectElement.appendChild(option);
+        });
+        // 恢复之前的选择（如果服务器列表没有变化）
+        if (currentSelection && servers.some(s => s.id == currentSelection)) {
+            selectElement.value = currentSelection;
+        }
+    } catch (error) {
+        console.error('填充仪表盘服务器列表失败:', error);
+        selectElement.innerHTML = '<option value="">加载失败</option>';
+        alertErr('无法加载服务器列表用于仪表盘: ' + error.message);
+    }
+}
+
+// 加载并显示仪表盘数据
+async function loadDashboardData() {
+    const serverId = document.getElementById('dashboardServerSelect').value;
+    const contentDiv = document.getElementById('dashboardContent');
+
+    if (!serverId) {
+        contentDiv.innerHTML = `
+            <div class="dashboard-error">
+                <i class="fa fa-exclamation-circle"></i>
+                <p>请先选择一个服务器。</p>
+            </div>
+        `;
+        return;
+    }
+
+    currentDashboardServerId = serverId;
+    contentDiv.innerHTML = `
+        <div class="dashboard-loading">
+            <i class="fa fa-spinner fa-spin"></i>
+            <p>正在加载仪表盘数据...</p>
+        </div>
+    `;
+
+    try {
+        // 并行获取指标和服务状态
+        const [metricsRes, servicesRes] = await Promise.all([
+            fetch(`/api/dashboard/server/${serverId}/metrics`),
+            fetch(`/api/dashboard/server/${serverId}/services`)
+            // 如果实现了历史数据，可以在这里添加 fetch(`/api/dashboard/server/${serverId}/history`)
+        ]);
+
+        if (!metricsRes.ok) {
+            throw new Error(`获取指标失败 (HTTP ${metricsRes.status})`);
+        }
+        if (!servicesRes.ok) {
+            throw new Error(`获取服务状态失败 (HTTP ${servicesRes.status})`);
+        }
+
+        const metricsData = await metricsRes.json();
+        const servicesData = await servicesRes.json();
+
+        if (!metricsData.success) {
+            throw new Error(`获取指标失败: ${metricsData.message || '未知错误'}`);
+        }
+        if (!servicesData.success) {
+            throw new Error(`获取服务状态失败: ${servicesData.message || '未知错误'}`);
+        }
+
+        renderDashboard(metricsData.data, servicesData.data); // 传递 .data
+
+    } catch (error) {
+        console.error('加载仪表盘数据失败:', error);
+        contentDiv.innerHTML = `
+            <div class="dashboard-error">
+                <i class="fa fa-exclamation-triangle"></i>
+                <p>加载仪表盘数据失败:</p>
+                <p>${error.message}</p>
+                <button class="btn ghost mt-16" onclick="loadDashboardData()"><i class="fa fa-sync"></i> 重试</button>
+            </div>
+        `;
+    }
+}
+
+// 渲染仪表盘内容
+function renderDashboard(metrics, services) {
+    const contentDiv = document.getElementById('dashboardContent');
+    // 确保 metrics 和 services 是对象
+    if (!metrics || typeof metrics !== 'object') {
+        console.error("Invalid metrics data:", metrics);
+        contentDiv.innerHTML = `<div class="dashboard-error"><i class="fa fa-exclamation-circle"></i><p>接收到无效的指标数据格式。</p></div>`;
+        return;
+    }
+    if (!services || typeof services !== 'object') {
+        console.error("Invalid services data:", services);
+        contentDiv.innerHTML = `<div class="dashboard-error"><i class="fa fa-exclamation-circle"></i><p>接收到无效的服务状态数据格式。</p></div>`;
+        return;
+    }
+
+    contentDiv.innerHTML = `
+        <div class="dashboard-grid">
+            <!-- CPU Widget -->
+            <div class="dashboard-widget">
+                <div class="dashboard-widget-header">
+                    <h3><i class="fa fa-microchip"></i> CPU 使用率</h3>
+                </div>
+                <div class="dashboard-widget-content">
+                    <div id="cpuChart" class="dashboard-chart-container"></div>
+                </div>
+            </div>
+
+            <!-- Memory Widget -->
+            <div class="dashboard-widget">
+                <div class="dashboard-widget-header">
+                    <h3><i class="fa fa-memory"></i> 内存使用率</h3>
+                </div>
+                <div class="dashboard-widget-content">
+                    <div id="memoryChart" class="dashboard-chart-container"></div>
+                </div>
+            </div>
+
+            <!-- Disk Widget -->
+            <div class="dashboard-widget">
+                <div class="dashboard-widget-header">
+                    <h3><i class="fa fa-hard-drive"></i> 磁盘使用率</h3>
+                </div>
+                <div class="dashboard-widget-content">
+                    <div id="diskChart" class="dashboard-chart-container"></div>
+                </div>
+            </div>
+
+            <!-- Services Widget -->
+            <div class="dashboard-widget">
+                <div class="dashboard-widget-header">
+                    <h3><i class="fa fa-cogs"></i> 服务状态</h3>
+                </div>
+                <div class="dashboard-widget-content">
+                    <ul id="serviceStatusList" class="service-status-list">
+                        <!-- 服务状态将在这里动态生成 -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // --- 初始化 ECharts 图表 ---
+    let cpuChart, memoryChart, diskChart;
+    try {
+        cpuChart = echarts.init(document.getElementById('cpuChart'));
+        memoryChart = echarts.init(document.getElementById('memoryChart'));
+        diskChart = echarts.init(document.getElementById('diskChart'));
+    } catch (initError) {
+        console.error("初始化 ECharts 失败:", initError);
+        contentDiv.innerHTML = `<div class="dashboard-error"><i class="fa fa-exclamation-circle"></i><p>ECharts 初始化失败。请检查库是否正确加载。</p></div>`;
+        return;
+    }
+
+    // --- 配置图表选项 (仪表盘样式) ---
+    const createGaugeOption = (title, value, iconName) => ({
+        series: [{
+            type: 'gauge',
+            startAngle: 180,
+            endAngle: 0,
+            min: 0,
+            max: 100,
+            splitNumber: 5,
+            axisLine: {
+                lineStyle: {
+                    width: 15,
+                    color: [
+                        [0.6, '#67e0e3'], // 0-60% 颜色 (青色)
+                        [0.8, '#ff9f7f'], // 60-80% 颜色 (橙色)
+                        [1, '#ff6767']    // 80-100% 颜色 (红色)
+                    ]
+                }
+            },
+            pointer: {
+                icon: 'path://M2.9,0.7L2.9,0.7c1.4,0,2.6,1.2,2.6,2.6v115c0,1.4-1.2,2.6-2.6,2.6l0,0c-1.4,0-2.6-1.2-2.6-2.6V3.3C0.3,1.9,1.4,0.7,2.9,0.7z',
+                width: 8,
+                length: '70%',
+                offsetCenter: [0, '8%']
+            },
+            axisTick: { show: false },
+            splitLine: { show: false },
+            axisLabel: {
+                show: true,
+                distance: 25,
+                color: '#999',
+                fontSize: 12
+            },
+            detail: {
+                show: true,
+                offsetCenter: [0, '30%'],
+                fontSize: 20, // 稍微减小字体
+                formatter: '{value}%',
+                color: 'inherit'
+            },
+            title: {
+                show: true,
+                offsetCenter: [0, '70%'], // 将标题放在仪表下方
+                fontSize: 14,
+                color: '#999'
+            },
+            data: [{ value: value, name: title }]
+        }]
+    });
+
+    // --- 设置图表数据 ---
+    // 确保从 metrics 对象获取正确的值，并处理可能的无效值 (-1)
+    const cpuValue = (metrics.cpu !== undefined && metrics.cpu >= 0) ? metrics.cpu : 0;
+    const memValue = (metrics.memory !== undefined && metrics.memory >= 0) ? metrics.memory : 0;
+    const diskValue = (metrics.disk !== undefined && metrics.disk >= 0) ? metrics.disk : 0;
+
+    cpuChart.setOption(createGaugeOption('CPU', cpuValue));
+    memoryChart.setOption(createGaugeOption('内存', memValue));
+    diskChart.setOption(createGaugeOption('磁盘', diskValue));
+
+    // --- 渲染服务状态列表 ---
+    const serviceList = document.getElementById('serviceStatusList');
+    if (serviceList) {
+        serviceList.innerHTML = ''; // 清空
+        let hasServices = false;
+        for (const [serviceName, status] of Object.entries(services)) {
+            // 跳过 success 和 message 字段 (如果存在)
+            if (serviceName === 'success' || serviceName === 'message') continue;
+            hasServices = true;
+
+            const listItem = document.createElement('li');
+            listItem.className = 'service-status-item';
+
+            // 根据服务名称选择图标
+            let serviceIcon = 'fa-cog'; // 默认图标
+            const lowerName = serviceName.toLowerCase();
+            if (lowerName.includes('mysql') || lowerName.includes('sql')) serviceIcon = 'fa-database';
+            else if (lowerName.includes('redis')) serviceIcon = 'fa-bolt';
+            else if (lowerName.includes('docker')) serviceIcon = 'fa-box';
+
+            // 标准化状态显示
+            let displayStatus = '未知';
+            let statusClass = 'unknown';
+            const lowerStatus = (status || '').toString().toLowerCase().trim();
+            if (lowerStatus === 'active' || lowerStatus === 'running') {
+                displayStatus = '运行中';
+                statusClass = 'active';
+            } else if (lowerStatus === 'inactive' || lowerStatus === 'dead' || lowerStatus === 'failed') {
+                displayStatus = '已停止';
+                statusClass = 'inactive';
+            } else if (lowerStatus !== '') {
+                displayStatus = lowerStatus; // 显示原始状态（如果非空）
+            }
+
+            listItem.innerHTML = `
+                 <span class="service-name"><i class="fa ${serviceIcon}"></i> ${serviceName}</span>
+                 <span class="service-status ${statusClass}">${displayStatus}</span>
+             `;
+            serviceList.appendChild(listItem);
+        }
+        if (!hasServices) {
+            serviceList.innerHTML = '<li class="service-status-item"><span>未配置监控服务</span></li>';
+        }
+    }
+
+    // --- 监听窗口大小变化以重置图表大小 ---
+    const handleResize = () => {
+        if (cpuChart) cpuChart.resize();
+        if (memoryChart) memoryChart.resize();
+        if (diskChart) diskChart.resize();
+    };
+    window.addEventListener('resize', handleResize);
+
+    // --- (可选) 在页面切换时清理事件监听器 ---
+    // 可以在 switchPage 函数中，当离开 dashboard 时移除 resize 监听器
+    // 例如：window.removeEventListener('resize', handleResize);
 }
 
 // ===== Init =====

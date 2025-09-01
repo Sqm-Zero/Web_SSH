@@ -816,6 +816,7 @@
 
         <nav class="nav">
             <div class="item active" data-page="ssh" onclick="switchPage('ssh', this)"><i class="fas fa-terminal"></i><span>SSH 连接</span></div>
+            <div class="item" onclick="switchPage('dashboard', this)"><i class="fa fa-chart-line"></i> 仪表盘</div>
             <div class="item" data-page="files" onclick="switchPage('files', this)"><i class="fas fa-folder"></i><span>文件管理</span></div>
             <div class="item" data-page="settings" onclick="switchPage('settings', this)"><i class="fas fa-gear"></i><span>设置</span></div>
         </nav>
@@ -916,6 +917,29 @@
                             <div class="tabs" id="terminalTabs"></div>
                             <div class="term-stage" id="terminalStage"></div>
                             <div class="status"><span id="statusLeft">就绪</span><span id="statusRight">行: 24, 列: 80</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 仪表盘 -->
+        <section class="page hidden" id="page-dashboard">
+            <div style="padding:16px;">
+                <div class="card">
+                    <div class="card-hd">
+                        <b>服务器仪表盘</b>
+                        <div style="margin-left: auto; display: flex; gap: 10px; align-items: center;">
+                            <select id="dashboardServerSelect" onchange="loadDashboardData()">
+                                <option value="">选择服务器...</option>
+                                <!-- 选项将通过 JS 动态填充 -->
+                            </select>
+                            <button class="btn primary" onclick="loadDashboardData()"><i class="fa fa-sync"></i> 刷新</button>
+                        </div>
+                    </div>
+                    <div class="card-bd">
+                        <div id="dashboardContent">
+                            <div class="alert info">请从下拉列表中选择一个服务器。</div>
                         </div>
                     </div>
                 </div>
@@ -1115,6 +1139,7 @@
     <div class="menu-item" onclick="showFileInfo()"><i class="fa fa-info-circle"></i> 属性</div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

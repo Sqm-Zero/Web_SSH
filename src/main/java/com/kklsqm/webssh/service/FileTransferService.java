@@ -265,17 +265,17 @@ public class FileTransferService {
     private String getPermissionString(int permissions) {
         StringBuilder sb = new StringBuilder();
 
-        // Owner permissions
+        // 所有者权限
         sb.append((permissions & 0400) != 0 ? 'r' : '-');
         sb.append((permissions & 0200) != 0 ? 'w' : '-');
         sb.append((permissions & 0100) != 0 ? 'x' : '-');
 
-        // Group permissions
+        // 组权限
         sb.append((permissions & 0040) != 0 ? 'r' : '-');
         sb.append((permissions & 0020) != 0 ? 'w' : '-');
         sb.append((permissions & 0010) != 0 ? 'x' : '-');
 
-        // Others permissions
+        // 其他权限
         sb.append((permissions & 0004) != 0 ? 'r' : '-');
         sb.append((permissions & 0002) != 0 ? 'w' : '-');
         sb.append((permissions & 0001) != 0 ? 'x' : '-');

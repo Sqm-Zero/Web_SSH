@@ -1,0 +1,358 @@
+package com.kklsqm.webssh.controller;
+
+import com.jcraft.jsch.ChannelExec;
+import com.jcraft.jsch.JSchException;
+import com.jcraft.jsch.Session;
+import com.kklsqm.webssh.common.SSHConnectionManager;
+import com.kklsqm.webssh.domain.SshService;
+import com.kklsqm.webssh.service.SshServiceService;
+import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+
+/**
+ * 功能: 服务器仪表盘
+ * 作者: 沙琪马
+ * 日期: 2025/9/1 11:50
+ */
+@Slf4j
+@RestController
+@RequestMapping("/api/dashboard")
+public class DashboardController {
+
+    @Resource
+    private SshServiceService serverService; // 用于获取服务器信息
+
+    @Resource
+    private SSHConnectionManager connectionManager; // 重用现有的 SSH 连接管理器
+
+    // 可选：用于缓存历史数据，避免频繁执行命令
+    private final Map<Long, List<Map<String, Object>>> historyCache = new ConcurrentHashMap<>();
+    private final Map<Long, Long> lastFetchTime = new ConcurrentHashMap<>();
+    private static final long CACHE_DURATION_MS = 5 * 60 * 1000; // 5分钟缓存
+
+    /**
+     * 获取服务器性能指标 (CPU, Memory, Disk)
+     * @param serverId 服务器ID
+     * @return 包含指标的 ResponseEntity
+     */
+    @GetMapping("/server/{serverId}/metrics")
+    public ResponseEntity<Map<String, Object>> getServerMetrics(@PathVariable Long serverId) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            SshService server = serverService.getById(serverId);
+            if (server == null) {
+                response.put("success", false);
+                response.put("message", "服务器未找到");
+                return ResponseEntity.ok(response);
+            }
+
+            // 通过 SSH 连接管理器创建临时连接来执行命令
+            String connectionId = connectionManager.createConnection(
+                    server.getHost(), server.getPort(), server.getUsername(), server.getPassword()
+            );
+
+            try {
+                Session session = connectionManager.getSession(connectionId);
+                if (session == null || !session.isConnected()) {
+                    throw new JSchException("无法建立或获取有效的SSH会话");
+                }
+
+                Map<String, Double> metrics = new HashMap<>();
+
+                // 并行执行命令以提高效率
+                CompletableFuture<Double> cpuFuture = CompletableFuture.supplyAsync(() -> {
+                    try {
+                        return executeCommandForValue(session, "vmstat 1 2 | tail -1 | awk '{print 100-$15}'");
+                    } catch (Exception e) {
+                        log.warn("获取CPU使用率失败: {}", e.getMessage());
+                        return -1.0; // 用-1表示获取失败
+                    }
+                });
+
+                CompletableFuture<Double> memFuture = CompletableFuture.supplyAsync(() -> {
+                    try {
+                        // 使用 free 命令计算内存使用率
+                        return executeCommandForValue(session, "free | awk 'NR==2{printf \"%.2f\", $3*100/$2 }'");
+                    } catch (Exception e) {
+                        log.warn("获取内存使用率失败: {}", e.getMessage());
+                        return -1.0;
+                    }
+                });
+
+                CompletableFuture<Double> diskFuture = CompletableFuture.supplyAsync(() -> {
+                    try {
+                        // 获取根分区使用率
+                        return executeCommandForValue(session, "df -h / | awk 'NR==2{print $5}' | sed 's/%//'");
+                    } catch (Exception e) {
+                        log.warn("获取磁盘使用率失败: {}", e.getMessage());
+                        return -1.0;
+                    }
+                });
+
+                // 等待所有命令执行完成
+                CompletableFuture.allOf(cpuFuture, memFuture, diskFuture).join();
+
+                metrics.put("cpu", cpuFuture.get());
+                metrics.put("memory", memFuture.get());
+                metrics.put("disk", diskFuture.get());
+
+                response.put("success", true);
+                response.put("data", metrics);
+
+            } finally {
+                // 确保临时连接被关闭
+                connectionManager.closeConnection(connectionId);
+            }
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("获取服务器 {} 指标失败", serverId, e);
+            response.put("success", false);
+            response.put("message", "获取指标失败: " + e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+
+    /**
+     * 获取特定服务的状态 (MySQL, Redis, Docker)
+     * @param serverId 服务器ID
+     * @return 包含服务状态的 ResponseEntity
+     */
+    @GetMapping("/server/{serverId}/services")
+    public ResponseEntity<Map<String, Object>> getServiceStatus(@PathVariable Long serverId) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            SshService server = serverService.getById(serverId);
+            if (server == null) {
+                response.put("success", false);
+                response.put("message", "服务器未找到");
+                return ResponseEntity.ok(response);
+            }
+
+            String connectionId = connectionManager.createConnection(
+                    server.getHost(), server.getPort(), server.getUsername(), server.getPassword()
+            );
+
+            try {
+                Session session = connectionManager.getSession(connectionId);
+                if (session == null || !session.isConnected()) {
+                    throw new JSchException("无法建立或获取有效的SSH会话");
+                }
+
+                Map<String, String> services = new HashMap<>();
+                // 定义要检查的服务及其对应的systemctl命令
+                Map<String, String> serviceCommands = Map.of(
+                        "mysql", "systemctl is-active mysql",
+                        "redis", "systemctl is-active redis",
+                        "docker", "systemctl is-active docker"
+                        // 可以根据实际服务名称调整命令，例如 mysqld, redis-server
+                );
+
+                // 并行检查服务状态
+                List<CompletableFuture<Void>> futures = serviceCommands.entrySet().stream()
+                        .map(entry -> CompletableFuture.runAsync(() -> {
+                            try {
+                                String serviceName = entry.getKey();
+                                String command = entry.getValue();
+                                String status = executeSimpleCommand(session, command).trim().toLowerCase();
+                                // 标准化输出，通常 'active' 表示运行，'inactive'/'failed' 表示停止
+                                services.put(serviceName, status);
+                            } catch (Exception e) {
+                                log.warn("检查服务 {} 状态失败: {}", entry.getKey(), e.getMessage());
+                                services.put(entry.getKey(), "unknown");
+                            }
+                        }))
+                        .collect(Collectors.toList());
+
+                // 等待所有服务检查完成
+                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+
+                response.put("success", true);
+                response.put("data", services);
+
+            } finally {
+                connectionManager.closeConnection(connectionId);
+            }
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("获取服务器 {} 服务状态失败", serverId, e);
+            response.put("success", false);
+            response.put("message", "获取服务状态失败: " + e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+
+    /**
+     * (可选) 获取服务器历史性能数据 (带缓存)
+     * @param serverId 服务器ID
+     * @return 包含历史数据的 ResponseEntity
+     */
+    @GetMapping("/server/{serverId}/history")
+    public ResponseEntity<Map<String, Object>> getPerformanceHistory(@PathVariable Long serverId) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            SshService server = serverService.getById(serverId);
+            if (server == null) {
+                response.put("success", false);
+                response.put("message", "服务器未找到");
+                return ResponseEntity.ok(response);
+            }
+
+            long now = System.currentTimeMillis();
+            long lastTime = lastFetchTime.getOrDefault(serverId, 0L);
+
+            // 检查缓存是否有效
+            if (now - lastTime < CACHE_DURATION_MS && historyCache.containsKey(serverId)) {
+                response.put("success", true);
+                response.put("data", historyCache.get(serverId));
+                response.put("cached", true);
+                log.debug("从缓存返回服务器 {} 的历史数据", serverId);
+                return ResponseEntity.ok(response);
+            }
+
+            String connectionId = connectionManager.createConnection(
+                    server.getHost(), server.getPort(), server.getUsername(), server.getPassword()
+            );
+
+            try {
+                Session session = connectionManager.getSession(connectionId);
+                if (session == null || !session.isConnected()) {
+                    throw new JSchException("无法建立或获取有效的SSH会话");
+                }
+
+                List<Map<String, Object>> historyData = new ArrayList<>();
+                // 模拟获取最近几次的数据点 (实际应用中可能需要从数据库或时序数据库查询)
+                // 这里简化为获取当前数据并添加几个历史点
+                for (int i = 4; i >= 0; i--) {
+                    Map<String, Object> point = new HashMap<>();
+                    point.put("timestamp", now - i * 60 * 1000); // 每分钟一个点
+
+                    // 模拟数据，实际应调用 getServerMetrics 并存储结果
+                    // 注意：真实场景下，您不应在此处再次执行SSH命令来获取历史数据，
+                    // 而应将实时数据存储到数据库或内存队列中供查询。
+                    // 此处仅为演示API结构。
+                    point.put("cpu", 20.0 + (Math.random() * 30)); // 模拟CPU 20-50%
+                    point.put("memory", 40.0 + (Math.random() * 20)); // 模拟内存 40-60%
+                    point.put("disk", 50.0 + (Math.random() * 20)); // 模拟磁盘 50-70%
+                    historyData.add(point);
+                }
+
+                // 更新缓存
+                historyCache.put(serverId, historyData);
+                lastFetchTime.put(serverId, now);
+
+                response.put("success", true);
+                response.put("data", historyData);
+                response.put("cached", false);
+
+            } finally {
+                connectionManager.closeConnection(connectionId);
+            }
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("获取服务器 {} 历史数据失败", serverId, e);
+            response.put("success", false);
+            response.put("message", "获取历史数据失败: " + e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+
+
+    // --- 辅助方法 ---
+
+    /**
+     * 在给定的 SSH Session 上执行命令并解析返回的数值。
+     * @param session 已连接的 JSch Session
+     * @param command 要执行的命令
+     * @return 解析后的 double 值，失败则返回 -1.0
+     * @throws JSchException
+     * @throws IOException
+     */
+    private double executeCommandForValue(Session session, String command) throws JSchException, IOException {
+        ChannelExec channel = (ChannelExec) session.openChannel("exec");
+        channel.setCommand(command);
+        try (InputStream in = channel.getInputStream();
+             BufferedReader reader = new BufferedReader(new InputStreamReader(in))) {
+
+            channel.connect();
+
+            StringBuilder outputBuffer = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                outputBuffer.append(line);
+            }
+
+            String output = outputBuffer.toString().trim();
+            if (output.isEmpty()) {
+                return -1.0;
+            }
+            return Double.parseDouble(output);
+
+        } catch (NumberFormatException e) {
+            log.warn("命令 '{}' 返回非数字输出: {}", command, e.getMessage());
+            return -1.0;
+        } finally {
+            if (channel.isConnected()) {
+                channel.disconnect();
+            }
+        }
+    }
+
+    /**
+     * 在给定的 SSH Session 上执行简单命令并返回标准输出的第一行。
+     * @param session 已连接的 JSch Session
+     * @param command 要执行的命令
+     * @return 命令的标准输出 (第一行)
+     * @throws JSchException
+     * @throws IOException
+     */
+    private String executeSimpleCommand(Session session, String command) throws JSchException, IOException {
+        ChannelExec channel = (ChannelExec) session.openChannel("exec");
+        channel.setCommand(command);
+        try (InputStream in = channel.getInputStream();
+             BufferedReader reader = new BufferedReader(new InputStreamReader(in))) {
+
+            channel.connect();
+
+            StringBuilder outputBuffer = new StringBuilder();
+            String line;
+            // 通常只读取第一行输出
+            if ((line = reader.readLine()) != null) {
+                outputBuffer.append(line);
+            }
+            // 如果需要读取所有输出，可以取消注释下面的循环
+            // while ((line = reader.readLine()) != null) {
+            //     outputBuffer.append(line).append("\n");
+            // }
+
+            return outputBuffer.toString();
+
+        } finally {
+            if (channel.isConnected()) {
+                channel.disconnect();
+            }
+        }
+    }
+}
