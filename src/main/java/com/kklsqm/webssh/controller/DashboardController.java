@@ -24,7 +24,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 /**
  * 功能: 服务器仪表盘
@@ -180,7 +179,7 @@ public class DashboardController {
                                 services.put(entry.getKey(), "unknown");
                             }
                         }))
-                        .collect(Collectors.toList());
+                        .toList();
 
                 // 等待所有服务检查完成
                 CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
@@ -200,6 +199,89 @@ public class DashboardController {
             response.put("message", "获取服务状态失败: " + e.getMessage());
             return ResponseEntity.status(500).body(response);
         }
+    }
+
+    /**
+     * 获取 Docker 容器列表
+     * @param serverId 服务器ID
+     * @return 包含容器列表的 ResponseEntity
+     */
+    @GetMapping("/server/{serverId}/docker/containers")
+    public ResponseEntity<Map<String, Object>> getDockerContainers(@PathVariable Long serverId) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            SshService server = serverService.getById(serverId);
+            if (server == null) {
+                response.put("success", false);
+                response.put("message", "服务器未找到");
+                return ResponseEntity.ok(response);
+            }
+
+            String connectionId = connectionManager.createConnection(
+                    server.getHost(), server.getPort(), server.getUsername(), server.getPassword()
+            );
+
+            try {
+                Session session = connectionManager.getSession(connectionId);
+                if (session == null || !session.isConnected()) {
+                    throw new JSchException("无法建立或获取有效的SSH会话");
+                }
+
+                List<Map<String, Object>> containers = new ArrayList<>();
+
+                // 执行 docker ps -a --format 命令获取所有容器的详细信息
+                // 使用 Go 模板格式化输出，方便解析
+                String command = "docker ps -a --format \"{{.ID}}|{{.Names}}|{{.Status}}|{{.Ports}}|{{.Image}}\"";
+                String output = executeSimpleCommand(session, command);
+
+                if (output != null && !output.trim().isEmpty()) {
+                    String[] lines = output.split("\n");
+                    for (String line : lines) {
+                        String[] parts = line.split("\\|");
+                        if (parts.length >= 5) {
+                            Map<String, Object> container = getStringObjectMap(parts);
+                            containers.add(container);
+                        }
+                    }
+                }
+
+                response.put("success", true);
+                response.put("data", containers);
+
+            } finally {
+                connectionManager.closeConnection(connectionId);
+            }
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("获取服务器 {} Docker 容器列表失败", serverId, e);
+            response.put("success", false);
+            response.put("message", "获取 Docker 容器列表失败: " + e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+
+    private static Map<String, Object> getStringObjectMap(String[] parts) {
+        Map<String, Object> container = new HashMap<>();
+        container.put("id", parts[0].substring(0, Math.min(parts[0].length(), 12))); // 取短ID
+        container.put("name", parts[1]);
+        container.put("status", parts[2]);
+
+        // 解析端口信息
+        String portsRaw = parts[3];
+        List<String> ports = new ArrayList<>();
+        if (!portsRaw.isEmpty()) {
+            // 简单处理，实际可能更复杂 (e.g., 8080/tcp, 0.0.0.0:80->80/tcp)
+            // 这里直接存储原始字符串，前端可以进一步解析或显示
+            ports.add(portsRaw);
+        }
+        container.put("ports", ports);
+
+        container.put("image", parts[4]);
+        // 简单判断是否运行中
+        container.put("isRunning", parts[2].toLowerCase().contains("up"));
+        return container;
     }
 
     /**
@@ -342,10 +424,9 @@ public class DashboardController {
             if ((line = reader.readLine()) != null) {
                 outputBuffer.append(line);
             }
-            // 如果需要读取所有输出，可以取消注释下面的循环
-            // while ((line = reader.readLine()) != null) {
-            //     outputBuffer.append(line).append("\n");
-            // }
+             while ((line = reader.readLine()) != null) {
+                 outputBuffer.append(line).append("\n");
+             }
 
             return outputBuffer.toString();
 

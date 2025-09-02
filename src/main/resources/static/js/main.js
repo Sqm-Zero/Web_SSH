@@ -1591,9 +1591,9 @@ async function loadDashboardData() {
 }
 
 // 渲染仪表盘内容
+// 渲染仪表盘内容 (增强版 - 支持 Docker 容器详情)
 function renderDashboard(metrics, services) {
     const contentDiv = document.getElementById('dashboardContent');
-    // 确保 metrics 和 services 是对象
     if (!metrics || typeof metrics !== 'object') {
         console.error("Invalid metrics data:", metrics);
         contentDiv.innerHTML = `<div class="dashboard-error"><i class="fa fa-exclamation-circle"></i><p>接收到无效的指标数据格式。</p></div>`;
@@ -1603,6 +1603,47 @@ function renderDashboard(metrics, services) {
         console.error("Invalid services data:", services);
         contentDiv.innerHTML = `<div class="dashboard-error"><i class="fa fa-exclamation-circle"></i><p>接收到无效的服务状态数据格式。</p></div>`;
         return;
+    }
+
+    // --- 生成服务列表的 HTML，为 Docker 添加特殊 ID 和类 ---
+    let serviceListHtml = '';
+    let hasServices = false;
+    for (const [serviceName, status] of Object.entries(services)) {
+        if (serviceName === 'success' || serviceName === 'message') continue;
+        hasServices = true;
+
+        let serviceIcon = 'fa-cog';
+        const lowerName = serviceName.toLowerCase();
+        if (lowerName.includes('mysql') || lowerName.includes('sql')) serviceIcon = 'fa-database';
+        else if (lowerName.includes('redis')) serviceIcon = 'fa-bolt';
+        else if (lowerName.includes('docker')) serviceIcon = 'fa-box'; // Docker 图标
+
+        let displayStatus = '未知';
+        let statusClass = 'unknown';
+        const lowerStatus = (status || '').toString().toLowerCase().trim();
+        if (lowerStatus === 'active' || lowerStatus === 'running') {
+            displayStatus = '运行中';
+            statusClass = 'active';
+        } else if (lowerStatus === 'inactive' || lowerStatus === 'dead' || lowerStatus === 'failed') {
+            displayStatus = '已停止';
+            statusClass = 'inactive';
+        } else if (lowerStatus !== '') {
+            displayStatus = lowerStatus;
+        }
+
+        // --- 为 Docker 服务项添加特殊属性 ---
+        const isDocker = lowerName.includes('docker');
+        const dataAttrs = isDocker ? `id="docker-service-item" class="docker-service-item" data-server-id="${currentDashboardServerId}"` : '';
+
+        serviceListHtml += `
+            <li class="service-status-item" ${dataAttrs}>
+                <span class="service-name"><i class="fa ${serviceIcon}"></i> ${serviceName}</span>
+                <span class="service-status ${statusClass}">${displayStatus}</span>
+            </li>
+        `;
+    }
+    if (!hasServices) {
+        serviceListHtml = '<li class="service-status-item"><span>未配置监控服务</span></li>';
     }
 
     contentDiv.innerHTML = `
@@ -1644,8 +1685,18 @@ function renderDashboard(metrics, services) {
                 </div>
                 <div class="dashboard-widget-content">
                     <ul id="serviceStatusList" class="service-status-list">
-                        <!-- 服务状态将在这里动态生成 -->
+                        ${serviceListHtml}
                     </ul>
+                    <!-- Docker Containers Detail Section (初始隐藏) -->
+                    <div id="dockerContainersDetail" class="docker-containers-detail hidden">
+                        <div class="detail-header">
+                            <h4><i class="fa fa-boxes"></i> Docker 容器</h4>
+                            <button class="btn ghost btn-sm" id="refreshDockerBtn"><i class="fa fa-sync"></i> 刷新</button>
+                        </div>
+                        <div id="dockerContainersList" class="containers-list">
+                            <div class="alert info">点击加载容器信息...</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1663,8 +1714,8 @@ function renderDashboard(metrics, services) {
         return;
     }
 
-    // --- 配置图表选项 (仪表盘样式) ---
-    const createGaugeOption = (title, value, iconName) => ({
+    // --- 配置并设置图表数据 ---
+    const createGaugeOption = (title, value) => ({
         series: [{
             type: 'gauge',
             startAngle: 180,
@@ -1676,9 +1727,9 @@ function renderDashboard(metrics, services) {
                 lineStyle: {
                     width: 15,
                     color: [
-                        [0.6, '#67e0e3'], // 0-60% 颜色 (青色)
-                        [0.8, '#ff9f7f'], // 60-80% 颜色 (橙色)
-                        [1, '#ff6767']    // 80-100% 颜色 (红色)
+                        [0.6, '#67e0e3'],
+                        [0.8, '#ff9f7f'],
+                        [1, '#ff6767']
                     ]
                 }
             },
@@ -1699,13 +1750,13 @@ function renderDashboard(metrics, services) {
             detail: {
                 show: true,
                 offsetCenter: [0, '30%'],
-                fontSize: 20, // 稍微减小字体
+                fontSize: 20,
                 formatter: '{value}%',
                 color: 'inherit'
             },
             title: {
                 show: true,
-                offsetCenter: [0, '70%'], // 将标题放在仪表下方
+                offsetCenter: [0, '70%'],
                 fontSize: 14,
                 color: '#999'
             },
@@ -1713,8 +1764,6 @@ function renderDashboard(metrics, services) {
         }]
     });
 
-    // --- 设置图表数据 ---
-    // 确保从 metrics 对象获取正确的值，并处理可能的无效值 (-1)
     const cpuValue = (metrics.cpu !== undefined && metrics.cpu >= 0) ? metrics.cpu : 0;
     const memValue = (metrics.memory !== undefined && metrics.memory >= 0) ? metrics.memory : 0;
     const diskValue = (metrics.disk !== undefined && metrics.disk >= 0) ? metrics.disk : 0;
@@ -1723,52 +1772,7 @@ function renderDashboard(metrics, services) {
     memoryChart.setOption(createGaugeOption('内存', memValue));
     diskChart.setOption(createGaugeOption('磁盘', diskValue));
 
-    // --- 渲染服务状态列表 ---
-    const serviceList = document.getElementById('serviceStatusList');
-    if (serviceList) {
-        serviceList.innerHTML = ''; // 清空
-        let hasServices = false;
-        for (const [serviceName, status] of Object.entries(services)) {
-            // 跳过 success 和 message 字段 (如果存在)
-            if (serviceName === 'success' || serviceName === 'message') continue;
-            hasServices = true;
-
-            const listItem = document.createElement('li');
-            listItem.className = 'service-status-item';
-
-            // 根据服务名称选择图标
-            let serviceIcon = 'fa-cog'; // 默认图标
-            const lowerName = serviceName.toLowerCase();
-            if (lowerName.includes('mysql') || lowerName.includes('sql')) serviceIcon = 'fa-database';
-            else if (lowerName.includes('redis')) serviceIcon = 'fa-bolt';
-            else if (lowerName.includes('docker')) serviceIcon = 'fa-box';
-
-            // 标准化状态显示
-            let displayStatus = '未知';
-            let statusClass = 'unknown';
-            const lowerStatus = (status || '').toString().toLowerCase().trim();
-            if (lowerStatus === 'active' || lowerStatus === 'running') {
-                displayStatus = '运行中';
-                statusClass = 'active';
-            } else if (lowerStatus === 'inactive' || lowerStatus === 'dead' || lowerStatus === 'failed') {
-                displayStatus = '已停止';
-                statusClass = 'inactive';
-            } else if (lowerStatus !== '') {
-                displayStatus = lowerStatus; // 显示原始状态（如果非空）
-            }
-
-            listItem.innerHTML = `
-                 <span class="service-name"><i class="fa ${serviceIcon}"></i> ${serviceName}</span>
-                 <span class="service-status ${statusClass}">${displayStatus}</span>
-             `;
-            serviceList.appendChild(listItem);
-        }
-        if (!hasServices) {
-            serviceList.innerHTML = '<li class="service-status-item"><span>未配置监控服务</span></li>';
-        }
-    }
-
-    // --- 监听窗口大小变化以重置图表大小 ---
+    // --- 设置窗口大小调整监听器 ---
     const handleResize = () => {
         if (cpuChart) cpuChart.resize();
         if (memoryChart) memoryChart.resize();
@@ -1776,9 +1780,114 @@ function renderDashboard(metrics, services) {
     };
     window.addEventListener('resize', handleResize);
 
-    // --- (可选) 在页面切换时清理事件监听器 ---
-    // 可以在 switchPage 函数中，当离开 dashboard 时移除 resize 监听器
-    // 例如：window.removeEventListener('resize', handleResize);
+
+    // --- 添加 Docker 交互逻辑 ---
+    const dockerServiceItem = document.getElementById('docker-service-item');
+    const dockerDetailSection = document.getElementById('dockerContainersDetail');
+    const dockerListContainer = document.getElementById('dockerContainersList');
+    const refreshDockerBtn = document.getElementById('refreshDockerBtn');
+
+    if (dockerServiceItem && dockerDetailSection) {
+        // 点击 Docker 服务项切换详情显示
+        dockerServiceItem.addEventListener('click', async function() {
+            // 切换显示/隐藏
+            dockerDetailSection.classList.toggle('hidden');
+
+            // 如果变为可见，则加载数据
+            if (!dockerDetailSection.classList.contains('hidden')) {
+                const serverId = this.dataset.serverId;
+                if (serverId) {
+                    await loadDockerContainers(serverId, dockerListContainer, refreshDockerBtn);
+                }
+            }
+        });
+
+        // 点击刷新按钮
+        if (refreshDockerBtn) {
+            refreshDockerBtn.addEventListener('click', async function() {
+                const serverId = dockerServiceItem.dataset.serverId;
+                if (serverId) {
+                    await loadDockerContainers(serverId, dockerListContainer, refreshDockerBtn);
+                }
+            });
+        }
+    }
+}
+
+// --- 新增：加载并显示 Docker 容器列表 ---
+async function loadDockerContainers(serverId, containerElement, refreshButtonElement) {
+    if (!containerElement || !refreshButtonElement) return;
+
+    const originalBtnHtml = refreshButtonElement.innerHTML;
+    refreshButtonElement.innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
+    refreshButtonElement.disabled = true;
+
+    containerElement.innerHTML = '<div class="alert info">正在加载容器列表...</div>';
+
+    try {
+        const response = await fetch(`/api/dashboard/server/${serverId}/docker/containers`);
+        const data = await response.json();
+
+        if (data.success && Array.isArray(data.data)) {
+            displayDockerContainers(data.data, containerElement);
+        } else {
+            throw new Error(data.message || '获取容器列表失败');
+        }
+    } catch (error) {
+        console.error("加载 Docker 容器失败:", error);
+        containerElement.innerHTML = `<div class="alert error">加载容器列表失败: ${error.message}</div>`;
+    } finally {
+        refreshButtonElement.innerHTML = originalBtnHtml;
+        refreshButtonElement.disabled = false;
+    }
+}
+
+// --- 渲染 Docker 容器列表 ---
+function displayDockerContainers(containers, containerElement) {
+    if (!Array.isArray(containers) || containers.length === 0) {
+        containerElement.innerHTML = '<div class="alert info">没有找到容器。</div>';
+        return;
+    }
+
+    let html = `
+        <div class="container-grid-header">
+            <div>名称/ID</div>
+            <div>镜像</div>
+            <div>状态</div>
+            <div>端口</div>
+        </div>
+        <div class="container-grid">
+    `;
+
+    containers.forEach(container => {
+        const isRunning = container.isRunning;
+        const statusClass = isRunning ? 'status-running' : 'status-stopped';
+        const statusText = isRunning ? '运行中' : '已停止';
+
+        // 处理端口显示
+        let portsDisplay = '无';
+        if (container.ports && container.ports.length > 0) {
+            // 简单显示，实际可以进一步解析
+            portsDisplay = container.ports.join(', ');
+        }
+
+        html += `
+            <div class="container-row ${isRunning ? 'running' : 'stopped'}">
+                <div class="container-cell" title="${container.name} (${container.id})">
+                    <div class="container-name">${container.name}</div>
+                    <div class="container-id">${container.id}</div>
+                </div>
+                <div class="container-cell" title="${container.image}">${container.image}</div>
+                <div class="container-cell">
+                    <span class="status-badge ${statusClass}">${statusText}</span>
+                </div>
+                <div class="container-cell" title="${portsDisplay}">${portsDisplay}</div>
+            </div>
+        `;
+    });
+
+    html += '</div>'; // Close .container-grid
+    containerElement.innerHTML = html;
 }
 
 // ===== Init =====

@@ -986,6 +986,7 @@ hr {
     margin-bottom: 16px;
     padding-bottom: 8px;
     border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
 }
 
 .dashboard-widget-header h3 {
@@ -1015,8 +1016,9 @@ hr {
     list-style: none;
     padding: 0;
     margin: 0;
-    flex: 1; /* 列表也占据内容区域的剩余空间 */
+    /*flex: 1; !* 列表也占据内容区域的剩余空间 *!*/
     overflow-y: auto; /* 如果列表项过多，允许内部滚动 */
+    flex-shrink: 0;
 }
 
 .service-status-item {
@@ -1095,4 +1097,137 @@ hr {
 }
 .dashboard-error i {
     color: var(--error); /* 使用错误颜色 */
+}
+
+/* Docker 容器详情区域 */
+.docker-containers-detail {
+    /* margin-top: 20px; */
+    margin: 20px -16px -16px -16px; /* 负边距使其撑满 widget 内边距 */
+    padding: 20px 16px 16px 16px;
+    border-top: 1px solid var(--border);
+    /* 关键修改：使其可以独立滚动 */
+    overflow-y: auto; /* 允许内容垂直滚动 */
+    /* flex: 1; */ /* 如果希望它占据剩余所有空间 */
+    /* 或者设置一个最大高度 */
+    max-height: 300px; /* 例如，限制容器详情区域的最大高度 */
+    display: flex;
+    flex-direction: column;
+}
+
+.docker-containers-detail.hidden {
+    display: none;
+}
+
+.docker-containers-detail .detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.docker-containers-detail .detail-header h4 {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Docker 容器网格列表 */
+.container-grid-header {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr; /* 调整列宽比例 */
+    gap: 10px;
+    padding: 10px 0;
+    font-weight: bold;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 5px;
+}
+
+.container-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.container-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr; /* 与表头对齐 */
+    gap: 10px;
+    padding: 10px;
+    border-radius: 4px;
+    background-color: rgba(30, 41, 59, 0.3); /* 深色主题下的行背景 */
+    transition: background-color 0.2s;
+}
+
+.theme-light .container-row {
+    background-color: rgba(226, 232, 240, 0.5); /* 亮色主题下的行背景 */
+}
+
+.container-row.running {
+    /* 可以为运行中的容器添加轻微的高亮 */
+    /* background-color: rgba(34, 197, 94, 0.1); */
+}
+
+.container-row.stopped {
+    /* 可以为停止的容器调整样式 */
+    opacity: 0.7;
+}
+
+.container-cell {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    word-break: break-word; /* 长内容换行 */
+    font-size: 0.95em;
+}
+
+.container-name {
+    font-weight: 500;
+}
+
+.container-id {
+    font-size: 0.85em;
+    color: #94a3b8; /* 灰色 ID */
+    .theme-light & {
+        color: #94a3b8;
+    }
+}
+
+/* 状态徽章 */
+.status-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    font-weight: bold;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.status-badge.status-running {
+    background-color: rgba(34, 197, 94, 0.1); /* 绿色 */
+    color: #86efac;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+}
+.theme-light .status-badge.status-running {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: #047857;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.status-badge.status-stopped {
+    background-color: rgba(100, 116, 139, 0.1); /* 灰色 */
+    color: #cbd5e1;
+    border: 1px solid rgba(100, 116, 139, 0.3);
+}
+.theme-light .status-badge.status-stopped {
+    background-color: rgba(100, 116, 139, 0.1);
+    color: #475569;
+    border: 1px solid rgba(100, 116, 139, 0.3);
+}
+
+/* 小按钮样式 (如果还没有定义) */
+.btn-sm {
+    padding: 6px 10px;
+    font-size: 0.9em;
 }
