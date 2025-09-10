@@ -5,8 +5,11 @@ let isFullscreen = false;
 let currentFileManagerServer = null; // 当前文件管理器连接的服务器
 let currentPath = "/";               // 当前浏览路径
 let selectedFile = null;             // 当前选中的文件/目录信息
+let reconnectTimer = null;           // 自动重连倒计时计时器
+let reconnectRemain = 0;             // 剩余秒数
+let latencyTimer = null;             // 延迟定时器
 
-const tabs = []; // {id, name, term, fitAddon}
+const tabs = []; // {id, name, term, fitAddon, searchAddon}
 let activeTab = null;
 let selectedFiles = new Set(); // 用于存储多选的文件名
 let lastSelectedFile = null; // 用于 Shift 选择
@@ -173,6 +176,62 @@ function setConnState(text, spinning=false) {
     pill.classList.add(spinning ? 'info' : (connected? 'success' : 'error'));
 }
 
+// ===== 延迟探测 =====
+async function pingLatency() {
+    const el = document.getElementById('latencyText');
+    if (!el) return;
+    try {
+        const start = performance.now();
+        // 轻量 GET，可由后端用 204/200 快速响应
+        const res = await fetch('/api/ping', { method: 'GET', cache: 'no-store' });
+        const end = performance.now();
+        if (res.ok) {
+            el.textContent = `延迟 ${Math.max(1, Math.round(end - start))} ms`;
+        } else {
+            el.textContent = '延迟 -- ms';
+        }
+    } catch (e) {
+        el.textContent = '延迟 -- ms';
+    }
+}
+
+function startLatencyProbe() {
+    clearInterval(latencyTimer);
+    // 初始立即测一次
+    pingLatency();
+    latencyTimer = setInterval(pingLatency, 10000);
+}
+function stopLatencyProbe() {
+    clearInterval(latencyTimer);
+}
+
+// ===== 自动重连倒计时 =====
+function startReconnectCountdown(seconds = 5) {
+    reconnectRemain = seconds;
+    const wrap = document.getElementById('reconnectWrap');
+    const text = document.getElementById('reconnectText');
+    if (wrap) wrap.classList.remove('hidden');
+    clearInterval(reconnectTimer);
+    text && (text.textContent = `重连 ${reconnectRemain}s`);
+    reconnectTimer = setInterval(() => {
+        reconnectRemain -= 1;
+        if (text) text.textContent = `重连 ${Math.max(0, reconnectRemain)}s`;
+        if (reconnectRemain <= 0) {
+            clearInterval(reconnectTimer);
+            wrap && wrap.classList.add('hidden');
+            // 触发重连：尝试重新建立 STOMP
+            ensureStompConnected(() => {
+                alertInfo('已尝试自动重连');
+            });
+        }
+    }, 1000);
+}
+function cancelReconnectCountdown() {
+    clearInterval(reconnectTimer);
+    const wrap = document.getElementById('reconnectWrap');
+    wrap && wrap.classList.add('hidden');
+}
+
 // ===== Saved servers (localStorage) =====
 const KEY = 'webssh.savedServers.v1';
 function refreshSaved(){ loadSavedServers(); alertInfo('已刷新已保存服务器列表'); }
@@ -190,11 +249,32 @@ function loadServerConfig() {
     const sel = document.getElementById('savedServers');
     const idx = sel.selectedIndex;
     if (idx <= 0) return;
-    const list = JSON.parse(localStorage.getItem(KEY) || '[]');
-    const server = list[idx - 1]; // 第一个选项是提示，所以减1
-    document.getElementById('host').value = server.host;
+
+    // 先尝试读取远程服务器（fetchServers 填充时写入了 data-server）
+    const opt = sel.options[idx];
+    let server = null;
+    if (opt && opt.dataset && opt.dataset.server) {
+        try {
+            server = JSON.parse(opt.dataset.server);
+        } catch (e) {
+            console.warn('解析远程服务器数据失败，回退到本地：', e);
+        }
+    }
+
+    // 如果没有 data-server，则按本地存储回退
+    if (!server) {
+        const list = JSON.parse(localStorage.getItem(KEY) || '[]');
+        server = list[idx - 1]; // 第一个选项是提示，所以减1
+    }
+
+    if (!server) {
+        alertWarn('未找到该服务器配置');
+        return;
+    }
+
+    document.getElementById('host').value = server.host || '';
     document.getElementById('port').value = server.port || 22;
-    document.getElementById('username').value = server.username;
+    document.getElementById('username').value = server.username || '';
     document.getElementById('password').value = server.password || '';
     document.getElementById('serverName').value = server.name || '';
     alertOk('已加载服务器配置');
@@ -270,6 +350,8 @@ function ensureStompConnected(onReady){
     stompClient.connect({}, () => {
         connected = true;
         setConnState('已连接');
+        cancelReconnectCountdown();
+        startLatencyProbe();
         // 订阅服务端输出
         stompClient.subscribe('/user/queue/output', (msg) => {
             try {
@@ -284,6 +366,8 @@ function ensureStompConnected(onReady){
         connected = false;
         setConnState('连接失败');
         alertErr('STOMP 连接失败：' + (err && err.body || err));
+        stopLatencyProbe();
+        startReconnectCountdown(5);
     });
 }
 
@@ -372,6 +456,8 @@ function disconnectSSH(){
     stompClient.send('/app/ssh/disconnect', {}, JSON.stringify({}));
     document.getElementById('disconnectBtn').disabled = true;
     alertInfo('已发送断开请求');
+    // 主动断开后也停止延迟探测
+    stopLatencyProbe();
 }
 
 async function testConnection() {
@@ -444,7 +530,9 @@ function createNewTab(name){
         fontSize: terminalSettings.fontSize,
     });
     const fitAddon = new FitAddon.FitAddon();
+    const searchAddon = new SearchAddon.SearchAddon();
     term.loadAddon(fitAddon);
+    term.loadAddon(searchAddon);
 
     // --- 新增：根据当前全局主题立即设置终端主题 ---
     const isLight = document.body.classList.contains('theme-light');
@@ -476,7 +564,7 @@ function createNewTab(name){
         }
     });
 
-    tabs.push({ id: tabId, name: name || 'SSH', term, fitAddon });
+    tabs.push({ id: tabId, name: name || 'SSH', term, fitAddon, searchAddon });
     activateTab(tabId);
 
     // 添加resize监听，确保终端适应窗口
@@ -579,6 +667,40 @@ function clearActive(){
     const t = getActive();
     if (!t) return;
     t.term.clear();
+}
+
+// ===== 搜索栏与搜索功能 =====
+function showSearchBar() {
+    const bar = document.getElementById('termSearchBar');
+    if (!bar) return;
+    bar.classList.remove('hidden');
+    const input = document.getElementById('termSearchInput');
+    if (input) {
+        input.focus();
+        input.select();
+    }
+}
+
+function hideSearchBar() {
+    const bar = document.getElementById('termSearchBar');
+    if (!bar) return;
+    bar.classList.add('hidden');
+}
+
+function doSearchNext() {
+    const t = getActive();
+    if (!t) return;
+    const q = document.getElementById('termSearchInput')?.value || '';
+    if (!q) return;
+    try { t.searchAddon.findNext(q); } catch (e) { console.warn(e); }
+}
+
+function doSearchPrev() {
+    const t = getActive();
+    if (!t) return;
+    const q = document.getElementById('termSearchInput')?.value || '';
+    if (!q) return;
+    try { t.searchAddon.findPrevious(q); } catch (e) { console.warn(e); }
 }
 
 function getActive(){
@@ -1952,6 +2074,53 @@ document.getElementById('backgroundType').addEventListener('change', function() 
 document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape' && isFullscreen) {
         toggleFullscreen();
+    }
+});
+
+// 全局快捷键
+document.addEventListener('keydown', function(e) {
+    const isMac = navigator.platform.toUpperCase().includes('MAC');
+    const mod = isMac ? e.metaKey : e.ctrlKey;
+
+    // 搜索 (Ctrl/Cmd + F)
+    if (mod && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        showSearchBar();
+        return;
+    }
+
+    // 清屏 (Ctrl/Cmd + K)
+    if (mod && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        clearActive();
+        return;
+    }
+
+    // 搜索导航：Enter / Shift+Enter 当搜索栏可见时
+    const bar = document.getElementById('termSearchBar');
+    if (bar && !bar.classList.contains('hidden')) {
+        if (e.key === 'Enter' && e.shiftKey) {
+            e.preventDefault();
+            doSearchPrev();
+            return;
+        }
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            doSearchNext();
+            return;
+        }
+    }
+
+    // 标签切换 Alt + ArrowLeft/Right or Alt + ArrowUp/Down
+    if (e.altKey && ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) {
+        e.preventDefault();
+        if (!tabs.length) return;
+        const idx = tabs.findIndex(t => t.id === activeTab);
+        if (idx === -1) return;
+        const dir = (e.key === 'ArrowLeft' || e.key === 'ArrowUp') ? -1 : 1;
+        const next = (idx + dir + tabs.length) % tabs.length;
+        activateTab(tabs[next].id);
+        return;
     }
 });
 

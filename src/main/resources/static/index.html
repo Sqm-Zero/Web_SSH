@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
     <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-search@0.13.0/lib/xterm-addon-search.js"></script>
 
     <!-- STOMP + SockJS -->
     <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
@@ -338,6 +339,28 @@
         .xterm-viewport { overflow-y: auto !important; }
         .xterm-screen { height: auto !important; }
         .term-pane.active { display:block; }
+
+        /* 终端搜索条 */
+        .term-search {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 8px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(7,12,25,.5);
+            flex-shrink: 0;
+        }
+        .theme-light .term-search { background: rgba(241,245,249,.5); }
+        .term-search input {
+            flex: 1;
+            min-width: 0;
+            padding: 6px 8px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--card);
+            color: var(--text);
+        }
+        .theme-light .term-search input { border:1px solid #cbd5e1; background:#f1f5f9; color:#1e293b; }
 
         .status {
             display:flex;
@@ -832,6 +855,8 @@
                 <div>连接管理</div>
             </div>
             <div class="right">
+                <span id="latencyWrap" class="alert info" title="与服务器的近似网络延迟"><i class="fa fa-wave-square"></i><span id="latencyText">延迟 -- ms</span></span>
+                <span id="reconnectWrap" class="alert warn hidden" title="断线后将自动重连"><i class="fa fa-clock"></i><span id="reconnectText">重连 0s</span></span>
                 <span id="connState" class="alert info"><i class="fa fa-circle-notch fa-spin" style="display:none" id="stateSpin"></i><span id="stateText">未连接</span></span>
                 <button class="btn ghost" onclick="refreshSaved()"><i class="fa fa-rotate"></i></button>
             </div>
@@ -914,6 +939,13 @@
                     <!-- /添加日志面板 -->
                     <div class="card-bd" style="flex: 1; overflow: hidden; display: flex; flex-direction: column;">
                         <div class="terminal-wrap">
+                            <div id="termSearchBar" class="term-search hidden">
+                                <i class="fa fa-magnifying-glass"></i>
+                                <input id="termSearchInput" placeholder="搜索 (Enter 下一个 / Shift+Enter 上一个)" />
+                                <button class="btn ghost" onclick="doSearchPrev()" title="上一个"><i class="fa fa-arrow-up"></i></button>
+                                <button class="btn ghost" onclick="doSearchNext()" title="下一个"><i class="fa fa-arrow-down"></i></button>
+                                <button class="btn ghost" onclick="hideSearchBar()" title="关闭"><i class="fa fa-xmark"></i></button>
+                            </div>
                             <div class="tabs" id="terminalTabs"></div>
                             <div class="term-stage" id="terminalStage"></div>
                             <div class="status"><span id="statusLeft">就绪</span><span id="statusRight">行: 24, 列: 80</span></div>
@@ -1013,6 +1045,15 @@
                             <div class="mt-16 text-right">
                                 <button class="btn primary" onclick="applyTerminalSettings()">应用字体设置</button>
                             </div>
+                        </div>
+                        <!-- 快捷键说明 -->
+                        <div class="setting-group">
+                            <h4>快捷键</h4>
+                            <div class="form-row"><label>清屏</label><div>Ctrl / ⌘ + K</div></div>
+                            <div class="form-row"><label>搜索</label><div>Ctrl / ⌘ + F（打开/聚焦搜索栏）</div></div>
+                            <div class="form-row"><label>搜索导航</label><div>Enter 下一个，Shift+Enter 上一个</div></div>
+                            <div class="form-row"><label>切换标签</label><div>Alt + ↑ / ↓ 或 Alt + ← / →</div></div>
+                            <div class="form-row"><label>退出全屏</label><div>Esc</div></div>
                         </div>
                     </div>
                 </div>
