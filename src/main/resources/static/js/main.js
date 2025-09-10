@@ -177,20 +177,41 @@ function setConnState(text, spinning=false) {
 }
 
 // ===== 延迟探测 =====
+function fetchWithTimeout(url, options = {}, timeoutMs = 3000) {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeoutMs);
+    return fetch(url, { ...options, signal: controller.signal })
+        .finally(() => clearTimeout(id));
+}
+
 async function pingLatency() {
     const el = document.getElementById('latencyText');
     if (!el) return;
-    try {
-        const start = performance.now();
-        // 轻量 GET，可由后端用 204/200 快速响应
-        const res = await fetch('/api/ping', { method: 'GET', cache: 'no-store' });
-        const end = performance.now();
-        if (res.ok) {
-            el.textContent = `延迟 ${Math.max(1, Math.round(end - start))} ms`;
-        } else {
-            el.textContent = '延迟 -- ms';
+
+    const candidates = [
+        { url: '/api/ping', method: 'GET' },
+        { url: '/actuator/health', method: 'HEAD' },
+        { url: '/', method: 'HEAD' }
+    ];
+
+    let measured = null;
+    for (const c of candidates) {
+        try {
+            const start = performance.now();
+            const res = await fetchWithTimeout(c.url, { method: c.method, cache: 'no-store' }, 3000);
+            const end = performance.now();
+            if (res.ok) {
+                measured = Math.max(1, Math.round(end - start));
+                break;
+            }
+        } catch (e) {
+            // 忽略，尝试下一个候选
         }
-    } catch (e) {
+    }
+
+    if (measured != null) {
+        el.textContent = `延迟 ${measured} ms`;
+    } else {
         el.textContent = '延迟 -- ms';
     }
 }
@@ -203,6 +224,8 @@ function startLatencyProbe() {
 }
 function stopLatencyProbe() {
     clearInterval(latencyTimer);
+    const el = document.getElementById('latencyText');
+    if (el) el.textContent = '延迟 -- ms';
 }
 
 // ===== 自动重连倒计时 =====
@@ -352,6 +375,8 @@ function ensureStompConnected(onReady){
         setConnState('已连接');
         cancelReconnectCountdown();
         startLatencyProbe();
+        // 连接成功后立即刷新一次延迟显示
+        setTimeout(pingLatency, 50);
         // 订阅服务端输出
         stompClient.subscribe('/user/queue/output', (msg) => {
             try {
