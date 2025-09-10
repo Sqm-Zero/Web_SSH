@@ -177,9 +177,11 @@ function setConnState(text, spinning=false) {
 }
 
 // ===== 延迟探测 =====
-function fetchWithTimeout(url, options = {}, timeoutMs = 3000) {
+function fetchWithTimeout(url, options = {}, timeoutMs) {
+    const s = getAppSettings();
+    const ms = typeof timeoutMs === 'number' ? timeoutMs : (s.latencyTimeoutMs || 3000);
     const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), timeoutMs);
+    const id = setTimeout(() => controller.abort(), ms);
     return fetch(url, { ...options, signal: controller.signal })
         .finally(() => clearTimeout(id));
 }
@@ -217,10 +219,12 @@ async function pingLatency() {
 }
 
 function startLatencyProbe() {
+    const s = getAppSettings();
     clearInterval(latencyTimer);
     // 初始立即测一次
     pingLatency();
-    latencyTimer = setInterval(pingLatency, 10000);
+    const intervalMs = Math.max(3000, (s.latencyIntervalSec || 10) * 1000);
+    latencyTimer = setInterval(pingLatency, intervalMs);
 }
 function stopLatencyProbe() {
     clearInterval(latencyTimer);
@@ -344,23 +348,144 @@ function addLogToPanel(type, msg) {
 
 // --- 修改：Alert 函数现在也写入日志面板 ---
 function alertInfo(msg) {
-    // 可以保留短暂提示，或者移除
-    console.log("[INFO]", msg); // 至少在控制台记录
-    addLogToPanel('info', msg); // 如果有日志面板则添加
+    console.log("[INFO]", msg);
+    addLogToPanel('info', msg);
+    showToast('info', '提示', msg);
 }
 function alertOk(msg) {
     console.log("[OK]", msg);
     addLogToPanel('success', msg);
+    showToast('success', '成功', msg);
 }
 function alertWarn(msg) {
-    // pushAlert('warn', msg);
     console.warn("[WARN]", msg);
     addLogToPanel('warn', msg);
+    showToast('warn', '注意', msg);
 }
 function alertErr(msg) {
-    // pushAlert('error', msg);
     console.error("[ERROR]", msg);
     addLogToPanel('error', msg);
+    showToast('error', '错误', msg);
+}
+
+// ===== Toast 实现 =====
+function getAppSettings() {
+    const raw = localStorage.getItem('webssh-app-settings');
+    let s = {
+        toastEnable: true,
+        toastDuration: 3500,
+        toastMax: 5,
+        latencyIntervalSec: 10,
+        latencyTimeoutMs: 3000,
+        autoreconnectEnable: true,
+        autoreconnectDelaySec: 5
+    };
+    if (raw) {
+        try { s = { ...s, ...JSON.parse(raw) }; } catch(e) { console.warn('解析应用设置失败', e); }
+    }
+    return s;
+}
+
+function saveAppSettings(s) {
+    localStorage.setItem('webssh-app-settings', JSON.stringify(s));
+}
+
+function applyAppSettings() {
+    const s = getAppSettings();
+    // 从表单读取
+    const toastEnable = document.getElementById('toastEnable')?.checked ?? s.toastEnable;
+    const toastDuration = parseInt(document.getElementById('toastDuration')?.value ?? s.toastDuration, 10) || 3500;
+    const toastMax = parseInt(document.getElementById('toastMax')?.value ?? s.toastMax, 10) || 5;
+    const latencyIntervalSec = parseInt(document.getElementById('latencyIntervalSec')?.value ?? s.latencyIntervalSec, 10) || 10;
+    const latencyTimeoutMs = parseInt(document.getElementById('latencyTimeoutMs')?.value ?? s.latencyTimeoutMs, 10) || 3000;
+    const autoreconnectEnable = document.getElementById('autoreconnectEnable')?.checked ?? s.autoreconnectEnable;
+    const autoreconnectDelaySec = parseInt(document.getElementById('autoreconnectDelaySec')?.value ?? s.autoreconnectDelaySec, 10) || 5;
+
+    const merged = { toastEnable, toastDuration, toastMax, latencyIntervalSec, latencyTimeoutMs, autoreconnectEnable, autoreconnectDelaySec };
+    saveAppSettings(merged);
+
+    // 应用到运行中的探测/计时器
+    clearInterval(latencyTimer);
+    startLatencyProbe();
+    alertOk('设置已应用');
+}
+
+function hydrateAppSettingsToForm() {
+    const s = getAppSettings();
+    const setVal = (id, value) => { const el = document.getElementById(id); if (el) el.value = value; };
+    const setChk = (id, value) => { const el = document.getElementById(id); if (el) el.checked = !!value; };
+    setChk('toastEnable', s.toastEnable);
+    setVal('toastDuration', s.toastDuration);
+    setVal('toastMax', s.toastMax);
+    setVal('latencyIntervalSec', s.latencyIntervalSec);
+    setVal('latencyTimeoutMs', s.latencyTimeoutMs);
+    setChk('autoreconnectEnable', s.autoreconnectEnable);
+    setVal('autoreconnectDelaySec', s.autoreconnectDelaySec);
+}
+
+function testToast() {
+    showToast('success', '测试成功', '这是一条测试提示。');
+}
+
+function showToast(type, title, desc, durationOverride) {
+    const s = getAppSettings();
+    if (!s.toastEnable) return;
+    const durationMs = typeof durationOverride === 'number' ? durationOverride : s.toastDuration;
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+
+    // 超过上限时移除最早的
+    while (container.children.length >= s.toastMax) {
+        container.removeChild(container.firstChild);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `
+        <div class="icon">${iconForType(type)}</div>
+        <div class="content">
+            <div class="title">${escapeHtml(title || '')}</div>
+            <div class="desc">${escapeHtml(desc || '')}</div>
+        </div>
+        <div class="close" title="关闭">✕</div>
+        <div class="bar"><span></span></div>
+    `;
+
+    const bar = toast.querySelector('.bar > span');
+    let startTime;
+    let rafId;
+    function tick(ts) {
+        if (!startTime) startTime = ts;
+        const p = Math.min(1, (ts - startTime) / durationMs);
+        bar.style.transform = `scaleX(${1 - p})`;
+        if (p < 1) rafId = requestAnimationFrame(tick); else removeToast();
+    }
+    function removeToast() {
+        cancelAnimationFrame(rafId);
+        if (toast.parentNode) container.removeChild(toast);
+    }
+    toast.querySelector('.close').addEventListener('click', removeToast);
+
+    container.appendChild(toast);
+    rafId = requestAnimationFrame(tick);
+}
+
+function iconForType(type) {
+    switch (type) {
+        case 'success': return '<i class="fa fa-check-circle" style="color: var(--acc-2)"></i>';
+        case 'warn': return '<i class="fa fa-exclamation-triangle" style="color: var(--warn)"></i>';
+        case 'error': return '<i class="fa fa-times-circle" style="color: var(--danger)"></i>';
+        default: return '<i class="fa fa-info-circle" style="color: var(--acc)"></i>';
+    }
+}
+
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 // ===== STOMP connect / flow =====

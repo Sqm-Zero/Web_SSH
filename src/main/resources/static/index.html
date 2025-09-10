@@ -377,6 +377,45 @@
             color:#64748b;
         }
 
+        /* Toasts */
+        .toast-container {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 2000;
+        }
+        .toast {
+            min-width: 260px;
+            max-width: 420px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,.35);
+            padding: 10px 12px;
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 10px;
+            align-items: center;
+            color: var(--text);
+        }
+        .toast .icon { opacity: .9; }
+        .toast .content { display: flex; flex-direction: column; gap: 2px; }
+        .toast .title { font-weight: 600; }
+        .toast .desc { font-size: 12px; color: var(--muted); }
+        .toast .close { cursor: pointer; opacity: .7; }
+        .toast.info { border-color: #1a2440; }
+        .toast.success { border-color: #0c8b47; }
+        .toast.warn { border-color: #b45309; }
+        .toast.error { border-color: #991b1b; }
+        .toast .bar { grid-column: 1 / -1; height: 3px; border-radius: 999px; background: rgba(255,255,255,.1); overflow: hidden; }
+        .toast .bar > span { display: block; height: 100%; width: 100%; transform-origin: left; background: var(--acc); }
+        .toast.success .bar > span { background: var(--acc-2); }
+        .toast.warn .bar > span { background: var(--warn); }
+        .toast.error .bar > span { background: var(--danger); }
+
         /* File manager */
         .file-grid-container {
             flex: 1;
@@ -1055,6 +1094,42 @@
                             <div class="form-row"><label>切换标签</label><div>Alt + ↑ / ↓ 或 Alt + ← / →</div></div>
                             <div class="form-row"><label>退出全屏</label><div>Esc</div></div>
                         </div>
+                        <!-- 通知与提示设置 -->
+                        <div class="setting-group">
+                            <h4>通知与提示</h4>
+                            <div class="form-row"><label>启用 Toast</label>
+                                <input type="checkbox" id="toastEnable" checked />
+                            </div>
+                            <div class="form-row"><label>停留时长(ms)</label>
+                                <input type="number" id="toastDuration" min="1000" max="15000" value="3500" />
+                            </div>
+                            <div class="form-row"><label>最多并发条数</label>
+                                <input type="number" id="toastMax" min="1" max="10" value="5" />
+                            </div>
+                            <div class="mt-16" style="display:flex; gap:8px; justify-content:flex-end;">
+                                <button class="btn ghost" onclick="testToast()"><i class="fa fa-bell"></i> 测试提示</button>
+                                <button class="btn primary" onclick="applyAppSettings()"><i class="fa fa-save"></i> 应用</button>
+                            </div>
+                        </div>
+                        <!-- 连接与状态设置 -->
+                        <div class="setting-group">
+                            <h4>连接与状态</h4>
+                            <div class="form-row"><label>延迟探测间隔(秒)</label>
+                                <input type="number" id="latencyIntervalSec" min="3" max="120" value="10" />
+                            </div>
+                            <div class="form-row"><label>延迟超时(毫秒)</label>
+                                <input type="number" id="latencyTimeoutMs" min="500" max="10000" value="3000" />
+                            </div>
+                            <div class="form-row"><label>自动重连启用</label>
+                                <input type="checkbox" id="autoreconnectEnable" checked />
+                            </div>
+                            <div class="form-row"><label>自动重连延迟(秒)</label>
+                                <input type="number" id="autoreconnectDelaySec" min="1" max="60" value="5" />
+                            </div>
+                            <div class="mt-16 text-right">
+                                <button class="btn primary" onclick="applyAppSettings()"><i class="fa fa-save"></i> 应用</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1182,5 +1257,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
 <script src="js/main.js"></script>
+<!-- Toast 容器 -->
+<div id="toastContainer" class="toast-container"></div>
 </body>
 </html>
