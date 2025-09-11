@@ -488,6 +488,40 @@ function escapeHtml(str) {
         .replace(/'/g, '&#39;');
 }
 
+// 规范化端口显示：后端可能返回 ['0.0.0.0:80->80/tcp, :::80->80/tcp']
+function normalizePorts(ports) {
+    if (!ports) return [];
+    let list = [];
+    if (Array.isArray(ports)) {
+        ports.forEach(item => {
+            if (typeof item === 'string') {
+                item.split(',').forEach(s => {
+                    const t = s.trim();
+                    if (t) list.push(t);
+                });
+            }
+        });
+    } else if (typeof ports === 'string') {
+        ports.split(',').forEach(s => { const t = s.trim(); if (t) list.push(t); });
+    }
+    return list;
+}
+
+// 从 docker ps 的端口字符串中提取 映射的 hostPort 与 containerPort
+// 示例: "0.0.0.0:80->80/tcp, :::80->80/tcp" 或 "0.0.0.0:8080->80/tcp, 443/tcp"
+function extractPortMappings(ports) {
+    const items = normalizePorts(ports);
+    const mappings = [];
+    const re = /(?:(?:\S+?):)?(\d+)->(\d+)\/(tcp|udp)/i; // 捕获 hostPort->containerPort
+    items.forEach(s => {
+        const m = s.match(re);
+        if (m) {
+            mappings.push({ hostPort: m[1], containerPort: m[2], proto: m[3].toLowerCase() });
+        }
+    });
+    return mappings;
+}
+
 // ===== STOMP connect / flow =====
 function ensureStompConnected(onReady){
     if (stompClient && connected) return onReady && onReady();
@@ -2133,13 +2167,12 @@ function renderDashboard(metrics, services) {
                 }
             },
             pointer: {
-                icon: 'path://M2.9,0.7L2.9,0.7c1.4,0,2.6,1.2,2.6,2.6v115c0,1.4-1.2,2.6-2.6,2.6l0,0c-1.4,0-2.6-1.2-2.6-2.6V3.3C0.3,1.9,1.4,0.7,2.9,0.7z',
-                width: 10,
-                length: '75%',
-                offsetCenter: [0, '5%'],
-                itemStyle: {
-                    color: '#3b82f6'
-                }
+                show: true,
+                icon: 'path://M2 0 L4 0 L6 110 L0 110 Z',
+                width: 6,
+                length: '70%',
+                offsetCenter: [0, '6%'],
+                itemStyle: { color: '#60a5fa' }
             },
             axisTick: { 
                 show: false 
@@ -2156,23 +2189,23 @@ function renderDashboard(metrics, services) {
             },
             detail: {
                 show: true,
-                offsetCenter: [0, '25%'],
-                fontSize: 28,
+                offsetCenter: [0, '26%'],
+                fontSize: 18,
                 fontWeight: '700',
                 formatter: '{value}%',
                 color: '#3b82f6',
-                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                backgroundColor: 'rgba(59, 130, 246, 0.08)',
                 borderRadius: 8,
-                padding: [8, 16],
-                borderColor: 'rgba(59, 130, 246, 0.3)',
+                padding: [4, 10],
+                borderColor: 'rgba(59, 130, 246, 0.25)',
                 borderWidth: 1
             },
             title: {
                 show: true,
-                offsetCenter: [0, '75%'],
-                fontSize: 16,
+                offsetCenter: [0, '78%'],
+                fontSize: 13,
                 fontWeight: '600',
-                color: '#e5e7eb'
+                color: '#cbd5e1'
             },
             data: [{ 
                 value: value, 
@@ -2184,13 +2217,14 @@ function renderDashboard(metrics, services) {
         }]
     });
 
-    const cpuValue = (metrics.cpu !== undefined && metrics.cpu >= 0) ? metrics.cpu : 0;
-    const memValue = (metrics.memory !== undefined && metrics.memory >= 0) ? metrics.memory : 0;
-    const diskValue = (metrics.disk !== undefined && metrics.disk >= 0) ? metrics.disk : 0;
+    const cpuValue = (metrics.cpu !== undefined && metrics.cpu >= 0) ? Math.round(metrics.cpu) : 0;
+    const memValue = (metrics.memory !== undefined && metrics.memory >= 0) ? Math.round(metrics.memory) : 0;
+    const diskValue = (metrics.disk !== undefined && metrics.disk >= 0) ? Math.round(metrics.disk) : 0;
 
-    cpuChart.setOption(createGaugeOption('CPU', cpuValue));
-    memoryChart.setOption(createGaugeOption('内存', memValue));
-    diskChart.setOption(createGaugeOption('磁盘', diskValue));
+    // 平滑动画过渡
+    cpuChart.setOption(createGaugeOption('CPU', cpuValue), { notMerge: true, lazyUpdate: true });
+    memoryChart.setOption(createGaugeOption('内存', memValue), { notMerge: true, lazyUpdate: true });
+    diskChart.setOption(createGaugeOption('磁盘', diskValue), { notMerge: true, lazyUpdate: true });
 
     // --- 设置窗口大小调整监听器 ---
     const handleResize = () => {
@@ -2201,42 +2235,19 @@ function renderDashboard(metrics, services) {
     window.addEventListener('resize', handleResize);
 
 
-    // --- 添加 Docker 交互逻辑 ---
-    // 使用事件委托来处理动态创建的 Docker 服务项
+    // --- 添加 Docker 交互逻辑（改为右侧抽屉） ---
     document.addEventListener('click', async function(event) {
-        // 检查是否点击了 Docker 服务项
+        // 点击服务项中的 Docker 项，打开右侧抽屉
         if (event.target.closest('#docker-service-item')) {
             const dockerServiceItem = event.target.closest('#docker-service-item');
-            const dockerDetailSection = document.getElementById('dockerContainersDetail');
-            const dockerListContainer = document.getElementById('dockerContainersList');
-            const refreshDockerBtn = document.getElementById('refreshDockerBtn');
-
-            if (dockerDetailSection) {
-                // 切换显示/隐藏
-                dockerDetailSection.classList.toggle('hidden');
-
-                // 如果变为可见，则加载数据
-                if (!dockerDetailSection.classList.contains('hidden')) {
-                    const serverId = dockerServiceItem.dataset.serverId;
-                    if (serverId) {
-                        await loadDockerContainers(serverId, dockerListContainer, refreshDockerBtn);
-                    }
-                }
-            }
+            const serverId = dockerServiceItem.dataset.serverId;
+            openDockerDrawer(serverId);
         }
 
-        // 检查是否点击了刷新按钮
-        if (event.target.closest('#refreshDockerBtn')) {
-            const refreshDockerBtn = event.target.closest('#refreshDockerBtn');
-            const dockerServiceItem = document.getElementById('docker-service-item');
-            const dockerListContainer = document.getElementById('dockerContainersList');
-
-            if (dockerServiceItem && dockerListContainer) {
-                const serverId = dockerServiceItem.dataset.serverId;
-                if (serverId) {
-                    await loadDockerContainers(serverId, dockerListContainer, refreshDockerBtn);
-                }
-            }
+        // 抽屉内部刷新按钮
+        if (event.target.closest('#dockerDrawerRefresh')) {
+            const serverId = currentDashboardServerId;
+            await refreshDockerDrawer(serverId);
         }
     });
 }
@@ -2307,13 +2318,14 @@ function displayDockerContainers(containers, containerElement) {
         const statusText = isRunning ? '运行中' : '已停止';
         const statusIcon = isRunning ? 'fa-play' : 'fa-stop';
 
-        // 处理端口显示
-        let portsDisplay = '无';
-        if (container.ports && container.ports.length > 0) {
-            portsDisplay = container.ports.slice(0, 3).join(', ');
-            if (container.ports.length > 3) {
-                portsDisplay += ` +${container.ports.length - 3}`;
-            }
+        // 端口映射：使用单个图标，悬浮展示全部“外部端口→容器端口”
+        // 使用文字徽章 + 计数，附加原生 title 与 CSS tooltip 双保险
+        let portsHtml = '<span class="port-badge more has-tooltip" data-tooltip="未映射" title="未映射">0</span>';
+        const mappings = extractPortMappings(container.ports);
+        if (mappings.length > 0) {
+            const all = mappings.map(m => `${m.hostPort}→${m.containerPort}`).join(', ');
+            const count = mappings.length;
+            portsHtml = `<span class="port-badge has-tooltip" data-tooltip="${escapeHtml(all)}" title="${escapeHtml(all)}">${count}</span>`;
         }
 
         // 处理镜像名称显示
@@ -2339,8 +2351,8 @@ function displayDockerContainers(containers, containerElement) {
                         ${statusText}
                     </span>
                 </div>
-                <div class="container-cell" title="${portsDisplay}">
-                    <div class="container-ports">${portsDisplay}</div>
+                <div class="container-cell">
+                    <div class="container-ports">${portsHtml}</div>
                 </div>
                 <div class="container-cell">
                     <div class="container-actions">
@@ -2366,6 +2378,50 @@ function displayDockerContainers(containers, containerElement) {
 
     html += '</div>'; // Close .container-grid
     containerElement.innerHTML = html;
+}
+
+// ===== Docker 抽屉逻辑 =====
+function openDockerDrawer(serverId) {
+    if (!serverId) return;
+    currentDashboardServerId = serverId;
+    const backdrop = document.getElementById('dockerDrawerBackdrop');
+    const drawer = document.getElementById('dockerDrawer');
+    const list = document.getElementById('dockerDrawerList');
+    const serverInfo = document.getElementById('dockerDrawerServerInfo');
+
+    // 显示抽屉
+    backdrop.classList.remove('hidden');
+    drawer.classList.remove('hidden');
+    setTimeout(() => drawer.classList.add('open'), 0);
+
+    // 服务器信息（从选择器取文本，或留空）
+    const select = document.getElementById('dashboardServerSelect');
+    if (select) {
+        const opt = Array.from(select.options).find(o => o.value == serverId);
+        if (opt) serverInfo.textContent = opt.textContent;
+    }
+
+    // 初始加载
+    const refreshBtn = document.getElementById('dockerDrawerRefresh');
+    list.innerHTML = '<div class="alert info">正在加载容器列表...</div>';
+    loadDockerContainers(serverId, list, refreshBtn);
+}
+
+async function refreshDockerDrawer(serverId) {
+    if (!serverId) return;
+    const list = document.getElementById('dockerDrawerList');
+    const refreshBtn = document.getElementById('dockerDrawerRefresh');
+    await loadDockerContainers(serverId, list, refreshBtn);
+}
+
+function closeDockerDrawer() {
+    const backdrop = document.getElementById('dockerDrawerBackdrop');
+    const drawer = document.getElementById('dockerDrawer');
+    drawer.classList.remove('open');
+    setTimeout(() => {
+        drawer.classList.add('hidden');
+        backdrop.classList.add('hidden');
+    }, 200);
 }
 
 // --- 容器操作函数 ---
