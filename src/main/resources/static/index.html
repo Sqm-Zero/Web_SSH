@@ -996,21 +996,71 @@
 
         <!-- 仪表盘 -->
         <section class="page hidden" id="page-dashboard">
-            <div style="padding:16px;">
-                <div class="card">
-                    <div class="card-hd">
-                        <b>服务器仪表盘</b>
-                        <div style="margin-left: auto; display: flex; gap: 10px; align-items: center;">
+            <div class="dashboard-container">
+                <!-- 顶部控制栏 -->
+                <div class="dashboard-header">
+                    <div class="dashboard-title">
+                        <h2><i class="fa fa-chart-line"></i> 服务器仪表盘</h2>
+                        <div class="dashboard-controls">
                             <select id="dashboardServerSelect" onchange="loadDashboardData()">
                                 <option value="">选择服务器...</option>
                                 <!-- 选项将通过 JS 动态填充 -->
                             </select>
-                            <button class="btn primary" onclick="loadDashboardData()"><i class="fa fa-sync"></i> 刷新</button>
+                            <button class="btn primary" onclick="loadDashboardData()" id="refreshBtn">
+                                <i class="fa fa-sync"></i> 刷新
+                            </button>
+                            <button class="btn secondary" onclick="toggleAutoRefresh()" id="autoRefreshBtn">
+                                <i class="fa fa-play"></i> 自动刷新
+                            </button>
+                            <button class="btn ghost" onclick="toggleFullscreen()" title="全屏">
+                                <i class="fa fa-expand"></i>
+                            </button>
                         </div>
                     </div>
-                    <div class="card-bd">
-                        <div id="dashboardContent">
-                            <div class="alert info">请从下拉列表中选择一个服务器。</div>
+                </div>
+
+                <!-- 概览卡片区域 -->
+                <div class="dashboard-overview" id="dashboardOverview" style="display: none;">
+                    <div class="overview-card">
+                        <div class="overview-icon">
+                            <i class="fa fa-server"></i>
+                        </div>
+                        <div class="overview-content">
+                            <h3 id="serverName">服务器名称</h3>
+                            <p id="serverInfo">连接信息</p>
+                        </div>
+                        <div class="overview-status">
+                            <span class="status-indicator" id="connectionStatus"></span>
+                            <span id="lastUpdate">最后更新: --</span>
+                        </div>
+                    </div>
+                    <div class="overview-stats">
+                        <div class="stat-item">
+                            <div class="stat-value" id="uptimeValue">--</div>
+                            <div class="stat-label">运行时间</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="loadValue">--</div>
+                            <div class="stat-label">负载</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="processesValue">--</div>
+                            <div class="stat-label">进程数</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="connectionsValue">--</div>
+                            <div class="stat-label">连接数</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 主要内容区域 -->
+                <div class="dashboard-content">
+                    <div id="dashboardContent">
+                        <div class="dashboard-placeholder">
+                            <i class="fa fa-chart-line"></i>
+                            <h3>选择服务器开始监控</h3>
+                            <p>从上方下拉列表中选择一个服务器来查看实时监控数据</p>
                         </div>
                     </div>
                 </div>

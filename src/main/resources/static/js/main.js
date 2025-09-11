@@ -1728,6 +1728,8 @@ async function createDirectory() {
 
 // 仪表盘状态
 let currentDashboardServerId = null;
+let autoRefreshInterval = null;
+let isDashboardFullscreen = false;
 
 // 修改 switchPage 函数以支持仪表盘
 // (找到您现有的 switchPage 函数并替换或修改它)
@@ -1803,18 +1805,28 @@ async function populateDashboardServerSelect() {
 async function loadDashboardData() {
     const serverId = document.getElementById('dashboardServerSelect').value;
     const contentDiv = document.getElementById('dashboardContent');
+    const overviewDiv = document.getElementById('dashboardOverview');
 
     if (!serverId) {
         contentDiv.innerHTML = `
-            <div class="dashboard-error">
-                <i class="fa fa-exclamation-circle"></i>
-                <p>请先选择一个服务器。</p>
+            <div class="dashboard-placeholder">
+                <i class="fa fa-chart-line"></i>
+                <h3>选择服务器开始监控</h3>
+                <p>从上方下拉列表中选择一个服务器来查看实时监控数据</p>
             </div>
         `;
+        overviewDiv.style.display = 'none';
         return;
     }
 
     currentDashboardServerId = serverId;
+    
+    // 显示概览区域
+    overviewDiv.style.display = 'flex';
+    
+    // 更新概览信息
+    updateDashboardOverview(serverId);
+    
     contentDiv.innerHTML = `
         <div class="dashboard-loading">
             <i class="fa fa-spinner fa-spin"></i>
@@ -1827,7 +1839,6 @@ async function loadDashboardData() {
         const [metricsRes, servicesRes] = await Promise.all([
             fetch(`/api/dashboard/server/${serverId}/metrics`),
             fetch(`/api/dashboard/server/${serverId}/services`)
-            // 如果实现了历史数据，可以在这里添加 fetch(`/api/dashboard/server/${serverId}/history`)
         ]);
 
         if (!metricsRes.ok) {
@@ -1847,7 +1858,10 @@ async function loadDashboardData() {
             throw new Error(`获取服务状态失败: ${servicesData.message || '未知错误'}`);
         }
 
-        renderDashboard(metricsData.data, servicesData.data); // 传递 .data
+        renderDashboard(metricsData.data, servicesData.data);
+        
+        // 更新最后更新时间
+        updateLastUpdateTime();
 
     } catch (error) {
         console.error('加载仪表盘数据失败:', error);
@@ -1859,6 +1873,116 @@ async function loadDashboardData() {
                 <button class="btn ghost mt-16" onclick="loadDashboardData()"><i class="fa fa-sync"></i> 重试</button>
             </div>
         `;
+    }
+}
+
+// 更新仪表盘概览信息
+async function updateDashboardOverview(serverId) {
+    try {
+        // 获取服务器信息
+        const serverRes = await fetch('/api/servers');
+        const serverData = await serverRes.json();
+        const server = serverData.find(s => s.id == serverId);
+        
+        if (server) {
+            document.getElementById('serverName').textContent = server.name;
+            document.getElementById('serverInfo').textContent = `${server.host}:${server.port} (${server.username})`;
+        }
+        
+        // 更新连接状态
+        const statusIndicator = document.getElementById('connectionStatus');
+        statusIndicator.className = 'status-indicator connecting';
+        
+        // 获取系统信息
+        try {
+            const systemRes = await fetch(`/api/dashboard/server/${serverId}/system`);
+            const systemData = await systemRes.json();
+            
+            if (systemData.success) {
+                const system = systemData.data;
+                document.getElementById('uptimeValue').textContent = formatUptime(system.uptime || 0);
+                document.getElementById('loadValue').textContent = (system.loadAverage || [0,0,0])[0].toFixed(2);
+                document.getElementById('processesValue').textContent = system.processCount || '--';
+                document.getElementById('connectionsValue').textContent = system.connectionCount || '--';
+                
+                statusIndicator.className = 'status-indicator connected';
+            }
+        } catch (e) {
+            console.warn('获取系统信息失败:', e);
+            statusIndicator.className = 'status-indicator';
+        }
+        
+    } catch (error) {
+        console.error('更新概览信息失败:', error);
+    }
+}
+
+// 格式化运行时间
+function formatUptime(seconds) {
+    if (!seconds) return '--';
+    
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    
+    if (days > 0) {
+        return `${days}天 ${hours}时`;
+    } else if (hours > 0) {
+        return `${hours}时 ${minutes}分`;
+    } else {
+        return `${minutes}分钟`;
+    }
+}
+
+// 更新最后更新时间
+function updateLastUpdateTime() {
+    const now = new Date();
+    const timeString = now.toLocaleTimeString('zh-CN', { 
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+    document.getElementById('lastUpdate').textContent = `最后更新: ${timeString}`;
+}
+
+// 切换自动刷新
+function toggleAutoRefresh() {
+    const btn = document.getElementById('autoRefreshBtn');
+    const icon = btn.querySelector('i');
+    
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
+        icon.className = 'fa fa-play';
+        btn.innerHTML = '<i class="fa fa-play"></i> 自动刷新';
+        alertInfo('已停止自动刷新');
+    } else {
+        autoRefreshInterval = setInterval(() => {
+            if (currentDashboardServerId) {
+                loadDashboardData();
+            }
+        }, 30000); // 30秒刷新一次
+        icon.className = 'fa fa-pause';
+        btn.innerHTML = '<i class="fa fa-pause"></i> 停止刷新';
+        alertOk('已开启自动刷新 (30秒)');
+    }
+}
+
+// 切换全屏模式
+function toggleFullscreen() {
+    const container = document.querySelector('.dashboard-container');
+    const btn = document.querySelector('[onclick="toggleFullscreen()"]');
+    const icon = btn.querySelector('i');
+    
+    if (isDashboardFullscreen) {
+        container.classList.remove('fullscreen');
+        icon.className = 'fa fa-expand';
+        isDashboardFullscreen = false;
+    } else {
+        container.classList.add('fullscreen');
+        icon.className = 'fa fa-compress';
+        isDashboardFullscreen = true;
     }
 }
 
@@ -1988,6 +2112,7 @@ function renderDashboard(metrics, services) {
 
     // --- 配置并设置图表数据 ---
     const createGaugeOption = (title, value) => ({
+        backgroundColor: 'transparent',
         series: [{
             type: 'gauge',
             startAngle: 180,
@@ -1995,44 +2120,67 @@ function renderDashboard(metrics, services) {
             min: 0,
             max: 100,
             splitNumber: 5,
+            radius: '80%',
+            center: ['50%', '60%'],
             axisLine: {
                 lineStyle: {
-                    width: 15,
+                    width: 20,
                     color: [
-                        [0.6, '#67e0e3'],
-                        [0.8, '#ff9f7f'],
-                        [1, '#ff6767']
+                        [0.3, '#22c55e'],
+                        [0.7, '#f59e0b'],
+                        [1, '#ef4444']
                     ]
                 }
             },
             pointer: {
                 icon: 'path://M2.9,0.7L2.9,0.7c1.4,0,2.6,1.2,2.6,2.6v115c0,1.4-1.2,2.6-2.6,2.6l0,0c-1.4,0-2.6-1.2-2.6-2.6V3.3C0.3,1.9,1.4,0.7,2.9,0.7z',
-                width: 8,
-                length: '70%',
-                offsetCenter: [0, '8%']
+                width: 10,
+                length: '75%',
+                offsetCenter: [0, '5%'],
+                itemStyle: {
+                    color: '#3b82f6'
+                }
             },
-            axisTick: { show: false },
-            splitLine: { show: false },
+            axisTick: { 
+                show: false 
+            },
+            splitLine: { 
+                show: false 
+            },
             axisLabel: {
                 show: true,
-                distance: 25,
-                color: '#999',
-                fontSize: 12
+                distance: 30,
+                color: '#94a3b8',
+                fontSize: 12,
+                fontWeight: '500'
             },
             detail: {
                 show: true,
-                offsetCenter: [0, '30%'],
-                fontSize: 20,
+                offsetCenter: [0, '25%'],
+                fontSize: 28,
+                fontWeight: '700',
                 formatter: '{value}%',
-                color: 'inherit'
+                color: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                borderRadius: 8,
+                padding: [8, 16],
+                borderColor: 'rgba(59, 130, 246, 0.3)',
+                borderWidth: 1
             },
             title: {
                 show: true,
-                offsetCenter: [0, '70%'],
-                fontSize: 14,
-                color: '#999'
+                offsetCenter: [0, '75%'],
+                fontSize: 16,
+                fontWeight: '600',
+                color: '#e5e7eb'
             },
-            data: [{ value: value, name: title }]
+            data: [{ 
+                value: value, 
+                name: title,
+                itemStyle: {
+                    color: value > 80 ? '#ef4444' : value > 60 ? '#f59e0b' : '#22c55e'
+                }
+            }]
         }]
     });
 
@@ -2054,36 +2202,43 @@ function renderDashboard(metrics, services) {
 
 
     // --- 添加 Docker 交互逻辑 ---
-    const dockerServiceItem = document.getElementById('docker-service-item');
-    const dockerDetailSection = document.getElementById('dockerContainersDetail');
-    const dockerListContainer = document.getElementById('dockerContainersList');
-    const refreshDockerBtn = document.getElementById('refreshDockerBtn');
+    // 使用事件委托来处理动态创建的 Docker 服务项
+    document.addEventListener('click', async function(event) {
+        // 检查是否点击了 Docker 服务项
+        if (event.target.closest('#docker-service-item')) {
+            const dockerServiceItem = event.target.closest('#docker-service-item');
+            const dockerDetailSection = document.getElementById('dockerContainersDetail');
+            const dockerListContainer = document.getElementById('dockerContainersList');
+            const refreshDockerBtn = document.getElementById('refreshDockerBtn');
 
-    if (dockerServiceItem && dockerDetailSection) {
-        // 点击 Docker 服务项切换详情显示
-        dockerServiceItem.addEventListener('click', async function() {
-            // 切换显示/隐藏
-            dockerDetailSection.classList.toggle('hidden');
+            if (dockerDetailSection) {
+                // 切换显示/隐藏
+                dockerDetailSection.classList.toggle('hidden');
 
-            // 如果变为可见，则加载数据
-            if (!dockerDetailSection.classList.contains('hidden')) {
-                const serverId = this.dataset.serverId;
-                if (serverId) {
-                    await loadDockerContainers(serverId, dockerListContainer, refreshDockerBtn);
+                // 如果变为可见，则加载数据
+                if (!dockerDetailSection.classList.contains('hidden')) {
+                    const serverId = dockerServiceItem.dataset.serverId;
+                    if (serverId) {
+                        await loadDockerContainers(serverId, dockerListContainer, refreshDockerBtn);
+                    }
                 }
             }
-        });
+        }
 
-        // 点击刷新按钮
-        if (refreshDockerBtn) {
-            refreshDockerBtn.addEventListener('click', async function() {
+        // 检查是否点击了刷新按钮
+        if (event.target.closest('#refreshDockerBtn')) {
+            const refreshDockerBtn = event.target.closest('#refreshDockerBtn');
+            const dockerServiceItem = document.getElementById('docker-service-item');
+            const dockerListContainer = document.getElementById('dockerContainersList');
+
+            if (dockerServiceItem && dockerListContainer) {
                 const serverId = dockerServiceItem.dataset.serverId;
                 if (serverId) {
                     await loadDockerContainers(serverId, dockerListContainer, refreshDockerBtn);
                 }
-            });
+            }
         }
-    }
+    });
 }
 
 // --- 新增：加载并显示 Docker 容器列表 ---
@@ -2097,10 +2252,14 @@ async function loadDockerContainers(serverId, containerElement, refreshButtonEle
     containerElement.innerHTML = '<div class="alert info">正在加载容器列表...</div>';
 
     try {
+        console.log('正在加载 Docker 容器，服务器ID:', serverId);
         const response = await fetch(`/api/dashboard/server/${serverId}/docker/containers`);
         const data = await response.json();
 
+        console.log('Docker 容器数据:', data);
+
         if (data.success && Array.isArray(data.data)) {
+            console.log('容器列表:', data.data);
             displayDockerContainers(data.data, containerElement);
         } else {
             throw new Error(data.message || '获取容器列表失败');
@@ -2116,50 +2275,186 @@ async function loadDockerContainers(serverId, containerElement, refreshButtonEle
 
 // --- 渲染 Docker 容器列表 ---
 function displayDockerContainers(containers, containerElement) {
+    console.log('开始渲染 Docker 容器列表，容器数量:', containers.length);
+    console.log('容器数据:', containers);
+    
     if (!Array.isArray(containers) || containers.length === 0) {
-        containerElement.innerHTML = '<div class="alert info">没有找到容器。</div>';
+        containerElement.innerHTML = `
+            <div class="alert info">
+                <i class="fa fa-info-circle"></i>
+                <p>没有找到容器</p>
+            </div>
+        `;
         return;
     }
 
     let html = `
         <div class="container-grid-header">
-            <div>名称/ID</div>
-            <div>镜像</div>
-            <div>状态</div>
-            <div>端口</div>
+            <div><i class="fa fa-tag"></i> 名称/ID</div>
+            <div><i class="fa fa-cube"></i> 镜像</div>
+            <div><i class="fa fa-circle"></i> 状态</div>
+            <div><i class="fa fa-network-wired"></i> 端口</div>
+            <div><i class="fa fa-cogs"></i> 操作</div>
         </div>
         <div class="container-grid">
     `;
 
     containers.forEach(container => {
+        console.log('处理容器:', container);
         const isRunning = container.isRunning;
+        console.log('容器运行状态:', isRunning, '类型:', typeof isRunning);
         const statusClass = isRunning ? 'status-running' : 'status-stopped';
         const statusText = isRunning ? '运行中' : '已停止';
+        const statusIcon = isRunning ? 'fa-play' : 'fa-stop';
 
         // 处理端口显示
         let portsDisplay = '无';
         if (container.ports && container.ports.length > 0) {
-            // 简单显示，实际可以进一步解析
-            portsDisplay = container.ports.join(', ');
+            portsDisplay = container.ports.slice(0, 3).join(', ');
+            if (container.ports.length > 3) {
+                portsDisplay += ` +${container.ports.length - 3}`;
+            }
         }
 
+        // 处理镜像名称显示
+        const imageName = container.image || '未知';
+        const shortImageName = imageName.length > 20 ? imageName.substring(0, 20) + '...' : imageName;
+
+        // 处理容器名称显示
+        const containerName = container.name || '未命名';
+        const shortName = containerName.length > 15 ? containerName.substring(0, 15) + '...' : containerName;
+
         html += `
-            <div class="container-row ${isRunning ? 'running' : 'stopped'}">
-                <div class="container-cell" title="${container.name} (${container.id})">
-                    <div class="container-name">${container.name}</div>
-                    <div class="container-id">${container.id}</div>
+            <div class="container-row ${isRunning ? 'running' : 'stopped'}" data-container-id="${container.id}">
+                <div class="container-cell" title="${containerName} (${container.id})">
+                    <div class="container-name">${shortName}</div>
+                    <div class="container-id">${container.id.substring(0, 12)}...</div>
                 </div>
-                <div class="container-cell" title="${container.image}">${container.image}</div>
+                <div class="container-cell" title="${imageName}">
+                    <div class="container-image">${shortImageName}</div>
+                </div>
                 <div class="container-cell">
-                    <span class="status-badge ${statusClass}">${statusText}</span>
+                    <span class="status-badge ${statusClass}">
+                        <i class="fa ${statusIcon}"></i>
+                        ${statusText}
+                    </span>
                 </div>
-                <div class="container-cell" title="${portsDisplay}">${portsDisplay}</div>
+                <div class="container-cell" title="${portsDisplay}">
+                    <div class="container-ports">${portsDisplay}</div>
+                </div>
+                <div class="container-cell">
+                    <div class="container-actions">
+                        ${isRunning ? 
+                            `<button class="container-action-btn stop" onclick="containerAction('${container.id}', 'stop')" title="停止">
+                                <i class="fa fa-stop"></i>
+                            </button>
+                            <button class="container-action-btn restart" onclick="containerAction('${container.id}', 'restart')" title="重启">
+                                <i class="fa fa-redo"></i>
+                            </button>` :
+                            `<button class="container-action-btn start" onclick="containerAction('${container.id}', 'start')" title="启动">
+                                <i class="fa fa-play"></i>
+                            </button>`
+                        }
+                        <button class="container-action-btn" onclick="showContainerLogs('${container.id}')" title="查看日志">
+                            <i class="fa fa-file-text"></i>
+                        </button>
+                    </div>
+                </div>
             </div>
         `;
     });
 
     html += '</div>'; // Close .container-grid
     containerElement.innerHTML = html;
+}
+
+// --- 容器操作函数 ---
+async function containerAction(containerId, action) {
+    if (!currentDashboardServerId) {
+        alertErr('请先选择服务器');
+        return;
+    }
+
+    const actionText = {
+        'start': '启动',
+        'stop': '停止',
+        'restart': '重启'
+    }[action] || action;
+
+    try {
+        showToast('info', '操作中', `正在${actionText}容器 ${containerId.substring(0, 12)}...`);
+        
+        const response = await fetch(`/api/dashboard/server/${currentDashboardServerId}/docker/container/${containerId}/${action}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('success', '操作成功', `容器已${actionText}`);
+            // 刷新容器列表
+            const dockerListContainer = document.getElementById('dockerContainersList');
+            const refreshDockerBtn = document.getElementById('refreshDockerBtn');
+            if (dockerListContainer && refreshDockerBtn) {
+                await loadDockerContainers(currentDashboardServerId, dockerListContainer, refreshDockerBtn);
+            }
+        } else {
+            throw new Error(data.message || `${actionText}失败`);
+        }
+    } catch (error) {
+        console.error(`容器${action}失败:`, error);
+        showToast('error', '操作失败', `${actionText}容器失败: ${error.message}`);
+    }
+}
+
+// --- 显示容器日志 ---
+async function showContainerLogs(containerId) {
+    if (!currentDashboardServerId) {
+        alertErr('请先选择服务器');
+        return;
+    }
+
+    try {
+        showToast('info', '加载中', '正在获取容器日志...');
+        
+        const response = await fetch(`/api/dashboard/server/${currentDashboardServerId}/docker/container/${containerId}/logs`);
+        const data = await response.json();
+        
+        if (data.success) {
+            // 创建日志查看模态框
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 800px; max-height: 600px;">
+                    <div class="modal-header">
+                        <h3><i class="fa fa-file-text"></i> 容器日志 - ${containerId.substring(0, 12)}</h3>
+                        <button class="btn ghost" onclick="this.closest('.modal').remove()">
+                            <i class="fa fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="log-container" style="background: #1a1a1a; color: #00ff00; font-family: 'Courier New', monospace; padding: 16px; border-radius: 8px; max-height: 400px; overflow-y: auto; white-space: pre-wrap; font-size: 12px;">
+                            ${data.data || '暂无日志'}
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn primary" onclick="this.closest('.modal').remove()">关闭</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            showToast('success', '加载完成', '容器日志已显示');
+        } else {
+            throw new Error(data.message || '获取日志失败');
+        }
+    } catch (error) {
+        console.error('获取容器日志失败:', error);
+        showToast('error', '加载失败', `获取日志失败: ${error.message}`);
+    }
 }
 
 // ===== Init =====
