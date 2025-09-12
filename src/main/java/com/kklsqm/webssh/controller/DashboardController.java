@@ -49,12 +49,8 @@ public class DashboardController {
     public ResponseEntity<Map<String, Object>> getServerMetrics(@PathVariable Long serverId) {
         Map<String, Object> response = new HashMap<>();
         try {
-            SshService server = serverService.getById(serverId);
-            if (server == null) {
-                response.put("success", false);
-                response.put("message", "服务器未找到");
-                return ResponseEntity.ok(response);
-            }
+            SshService server = Optional.ofNullable(serverService.getById(serverId))
+                    .orElseThrow(() -> new RuntimeException("服务器未找到"));
 
             // 通过 SSH 连接管理器创建临时连接来执行命令
             String connectionId = connectionManager.createConnection(
@@ -204,12 +200,8 @@ public class DashboardController {
     public ResponseEntity<Map<String, Object>> getDockerContainers(@PathVariable Long serverId) {
         Map<String, Object> response = new HashMap<>();
         try {
-            SshService server = serverService.getById(serverId);
-            if (server == null) {
-                response.put("success", false);
-                response.put("message", "服务器未找到");
-                return ResponseEntity.ok(response);
-            }
+            SshService server = Optional.ofNullable(serverService.getById(serverId))
+                    .orElseThrow(() -> new RuntimeException("服务器未找到"));
 
             String connectionId = connectionManager.createConnection(
                     server.getHost(), server.getPort(), server.getUsername(), server.getPassword()
@@ -287,12 +279,8 @@ public class DashboardController {
     public ResponseEntity<Map<String, Object>> getPerformanceHistory(@PathVariable Long serverId) {
         Map<String, Object> response = new HashMap<>();
         try {
-            SshService server = serverService.getById(serverId);
-            if (server == null) {
-                response.put("success", false);
-                response.put("message", "服务器未找到");
-                return ResponseEntity.ok(response);
-            }
+            SshService server = Optional.ofNullable(serverService.getById(serverId))
+                    .orElseThrow(() -> new RuntimeException("服务器未找到"));
 
             long now = System.currentTimeMillis();
             long lastTime = lastFetchTime.getOrDefault(serverId, 0L);
@@ -364,12 +352,8 @@ public class DashboardController {
     public ResponseEntity<Map<String, Object>> getSystemInfo(@PathVariable Long serverId) {
         Map<String, Object> response = new HashMap<>();
         try {
-            SshService server = serverService.getById(serverId);
-            if (server == null) {
-                response.put("success", false);
-                response.put("message", "服务器未找到");
-                return ResponseEntity.ok(response);
-            }
+            SshService server = Optional.ofNullable(serverService.getById(serverId))
+                    .orElseThrow(() -> new RuntimeException("服务器未找到"));
 
             String connectionId = connectionManager.createConnection(
                     server.getHost(), server.getPort(), server.getUsername(), server.getPassword()
@@ -478,12 +462,8 @@ public class DashboardController {
         }
 
         try {
-            SshService server = serverService.getById(serverId);
-            if (server == null) {
-                response.put("success", false);
-                response.put("message", "服务器未找到");
-                return ResponseEntity.ok(response);
-            }
+            SshService server = Optional.ofNullable(serverService.getById(serverId))
+                    .orElseThrow(() -> new RuntimeException("服务器未找到"));
 
             String connectionId = connectionManager.createConnection(
                     server.getHost(), server.getPort(), server.getUsername(), server.getPassword()
@@ -551,12 +531,8 @@ public class DashboardController {
         Map<String, Object> response = new HashMap<>();
         
         try {
-            SshService server = serverService.getById(serverId);
-            if (server == null) {
-                response.put("success", false);
-                response.put("message", "服务器未找到");
-                return ResponseEntity.ok(response);
-            }
+            SshService server = Optional.ofNullable(serverService.getById(serverId))
+                    .orElseThrow(() -> new RuntimeException("服务器未找到"));
 
             String connectionId = connectionManager.createConnection(
                     server.getHost(), server.getPort(), server.getUsername(), server.getPassword()
@@ -606,12 +582,6 @@ public class DashboardController {
         try {
             SshService server = Optional.ofNullable(serverService.getById(serverId))
                     .orElseThrow(() -> new RuntimeException("服务器未找到"));
-            /*SshService server = serverService.getById(serverId);
-            if (server == null) {
-                response.put("success", false);
-                response.put("message", "服务器未找到");
-                return ResponseEntity.ok(response);
-            }*/
 
             String connectionId = connectionManager.createConnection(
                     server.getHost(), server.getPort(), server.getUsername(), server.getPassword()
