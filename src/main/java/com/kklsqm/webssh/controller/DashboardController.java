@@ -15,10 +15,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -607,12 +604,14 @@ public class DashboardController {
         Map<String, Object> response = new HashMap<>();
         
         try {
-            SshService server = serverService.getById(serverId);
+            SshService server = Optional.ofNullable(serverService.getById(serverId))
+                    .orElseThrow(() -> new RuntimeException("服务器未找到"));
+            /*SshService server = serverService.getById(serverId);
             if (server == null) {
                 response.put("success", false);
                 response.put("message", "服务器未找到");
                 return ResponseEntity.ok(response);
-            }
+            }*/
 
             String connectionId = connectionManager.createConnection(
                     server.getHost(), server.getPort(), server.getUsername(), server.getPassword()
