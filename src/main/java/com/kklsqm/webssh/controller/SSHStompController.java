@@ -4,6 +4,7 @@ import com.jcraft.jsch.ChannelShell;
 import com.jcraft.jsch.JSchException;
 import com.kklsqm.webssh.common.SSHConnectionManager;
 import jakarta.annotation.Resource;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -29,13 +30,12 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 @Controller
 @RestController
+@RequiredArgsConstructor
 public class SSHStompController {
 
-    @Resource
-    private SSHConnectionManager connectionManager;
+    private final SSHConnectionManager connectionManager;
 
-    @Resource
-    private SimpMessagingTemplate messagingTemplate;
+    private final SimpMessagingTemplate messagingTemplate;
 
     private final Map<String, String> userConnections = new ConcurrentHashMap<>();
 

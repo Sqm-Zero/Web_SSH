@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * 功能:  服务器管理
@@ -31,6 +32,7 @@ public class ServerController {
      */
     @GetMapping
     public ResponseEntity<List<SshService>> getServers() {
+        log.info("获取服务器列表");
         List<SshService> servers = serverService.list();
         return ResponseEntity.ok(servers);
     }
@@ -42,13 +44,14 @@ public class ServerController {
     public ResponseEntity<Map<String, Object>> addServer(@RequestBody SshService server) {
         log.info("添加服务器: {}", server);
         try {
-            SshService one = new LambdaQueryChainWrapper<SshService>(serverService.getBaseMapper())
+             Optional.ofNullable(new LambdaQueryChainWrapper<SshService>(serverService.getBaseMapper())
                     .eq(SshService::getHost, server.getHost())
                     .eq(SshService::getPort, server.getPort())
-                    .one();
-            if(one != null){
-                server.setId(one.getId());
-            }
+                    .one())
+                    .ifPresent(
+                            s -> server.setId(s.getId())
+                    );
+
             serverService.saveOrUpdate(server);
             return ResponseEntity.ok(Map.of("success", true, "id", server.getId()));
         } catch (Exception e) {
@@ -62,6 +65,7 @@ public class ServerController {
      */
     @DeleteMapping("/{id}")
     public ResponseEntity<Map<String, Object>> deleteServer(@PathVariable Long id) {
+        log.info("删除服务器: {}", id);
         try {
             serverService.removeById(id);
             return ResponseEntity.ok(Map.of("success", true));

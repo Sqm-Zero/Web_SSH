@@ -7,6 +7,7 @@ import com.kklsqm.webssh.common.SSHConnectionManager;
 import com.kklsqm.webssh.domain.SshService;
 import com.kklsqm.webssh.service.SshServiceService;
 import jakarta.annotation.Resource;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -27,13 +28,12 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 @RestController
 @RequestMapping("/api/dashboard")
+@RequiredArgsConstructor
 public class DashboardController {
 
-    @Resource
-    private SshServiceService serverService; // 用于获取服务器信息
+    private final SshServiceService serverService; // 用于获取服务器信息
 
-    @Resource
-    private SSHConnectionManager connectionManager; // 重用现有的 SSH 连接管理器
+    private final SSHConnectionManager connectionManager; // 重用现有的 SSH 连接管理器
 
     // 可选：用于缓存历史数据，避免频繁执行命令
     private final Map<Long, List<Map<String, Object>>> historyCache = new ConcurrentHashMap<>();
@@ -47,6 +47,7 @@ public class DashboardController {
      */
     @GetMapping("/server/{serverId}/metrics")
     public ResponseEntity<Map<String, Object>> getServerMetrics(@PathVariable Long serverId) {
+        log.info("获取服务器 {} 性能指标", serverId);
         Map<String, Object> response = new HashMap<>();
         try {
             SshService server = Optional.ofNullable(serverService.getById(serverId))
@@ -141,10 +142,8 @@ public class DashboardController {
             );
 
             try {
-                Session session = connectionManager.getSession(connectionId);
-                if (session == null || !session.isConnected()) {
-                    throw new JSchException("无法建立或获取有效的SSH会话");
-                }
+                Session session = Optional.ofNullable(connectionManager.getSession(connectionId))
+                        .orElseThrow(() -> new RuntimeException("无法建立或获取有效的SSH会话"));
 
                 Map<String, String> services = new HashMap<>();
                 // 定义要检查的服务及其对应的systemctl命令
@@ -208,10 +207,8 @@ public class DashboardController {
             );
 
             try {
-                Session session = connectionManager.getSession(connectionId);
-                if (session == null || !session.isConnected()) {
-                    throw new JSchException("无法建立或获取有效的SSH会话");
-                }
+                Session session = Optional.ofNullable(connectionManager.getSession(connectionId))
+                        .orElseThrow(() -> new RuntimeException("无法建立或获取有效的SSH会话"));
 
                 List<Map<String, Object>> containers = new ArrayList<>();
 
@@ -299,10 +296,8 @@ public class DashboardController {
             );
 
             try {
-                Session session = connectionManager.getSession(connectionId);
-                if (session == null || !session.isConnected()) {
-                    throw new JSchException("无法建立或获取有效的SSH会话");
-                }
+                Session session = Optional.ofNullable(connectionManager.getSession(connectionId))
+                        .orElseThrow(() -> new JSchException("无法建立或获取有效的SSH会话"));
 
                 List<Map<String, Object>> historyData = new ArrayList<>();
                 // 模拟获取最近几次的数据点 (实际应用中可能需要从数据库或时序数据库查询)
@@ -360,10 +355,8 @@ public class DashboardController {
             );
 
             try {
-                Session session = connectionManager.getSession(connectionId);
-                if (session == null || !session.isConnected()) {
-                    throw new JSchException("无法建立或获取有效的SSH会话");
-                }
+                Session session = Optional.ofNullable(connectionManager.getSession(connectionId))
+                        .orElseThrow(() -> new JSchException("无法建立或获取有效的SSH会话"));
 
                 Map<String, Object> systemInfo = new HashMap<>();
 
@@ -470,10 +463,8 @@ public class DashboardController {
             );
 
             try {
-                Session session = connectionManager.getSession(connectionId);
-                if (session == null || !session.isConnected()) {
-                    throw new JSchException("无法建立或获取有效的SSH会话");
-                }
+                Session session = Optional.ofNullable(connectionManager.getSession(connectionId))
+                        .orElseThrow(() -> new JSchException("无法建立或获取有效的SSH会话"));
 
                 // 构建 Docker 命令
                 String command = String.format("docker %s %s", action, containerId);
