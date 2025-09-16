@@ -47,12 +47,17 @@ mvn clean install
 
 ## 展示效果
 
-![首页](./img/Snipaste_2025-08-27_17-35-04.png)
+首页
+![首页](./img/home.png)
+![首页](./img/home-link.png)
 
+仪表盘
+![仪表盘](./img/Dashboard.png)
+![Docker](./img/docker.png)
+
+文件管理
 ![文件管理](./img/Snipaste_2025-08-27_17-38-06.png)
-
-![设置](./img/Snipaste_2025-08-27_17-38-18.png)
-
 ![文件管理](./img/Snipaste_2025-08-27_17-47-16.png)
-
 ![文件属性](./img/Snipaste_2025-08-27_17-47-46.png)
+设置
+![设置](./img/Snipaste_2025-08-27_17-38-18.png)

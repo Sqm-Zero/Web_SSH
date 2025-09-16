@@ -6,7 +6,6 @@ import com.jcraft.jsch.Session;
 import com.kklsqm.webssh.common.SSHConnectionManager;
 import com.kklsqm.webssh.domain.SshService;
 import com.kklsqm.webssh.service.SshServiceService;
-import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
